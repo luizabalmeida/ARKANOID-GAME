@@ -26,6 +26,8 @@ Ball game_ball;
 PowerUpNode *powerup_head = NULL;
 
 int current_score = 0;
+int active_blocks_count = 0; 
+
 int game_state = 3;
 HighScore top_scores[MAX_HIGH_SCORES];
 
@@ -39,6 +41,8 @@ void InitializeBlocks()
     float block_height = current_screen_height * 0.05f;
     float top_offset = current_screen_height * 0.05f;
 
+    active_blocks_count = 0; 
+
     for (int i = 0; i < BLOCK_ROWS; i++)
     {
         for (int j = 0; j < BLOCK_COLS; j++)
@@ -51,6 +55,8 @@ void InitializeBlocks()
 
             game_blocks[i][j].is_active = 1;
             game_blocks[i][j].type = 1;
+            
+            active_blocks_count++; 
         }
     }
 }
@@ -172,8 +178,24 @@ void CheckBallBlockCollision(Ball *ball)
                     ball->velocity.y *= -1.0f;
                     
                     game_blocks[i][j].is_active = 0; 
+                    active_blocks_count--; 
                     current_score += 10;
                     
+                    if (active_blocks_count <= 0) 
+                    {
+                        InitializeBlocks(); 
+                        
+                        ball->position = (Vector2){ current_screen_width / 2.0f, player_paddle.rect.y - BALL_RADIUS };
+                        
+                        float speedMultiplier = 1.1f;
+                        if (ball->velocity.y > 0) ball->velocity.y = -BALL_INITIAL_SPEED * speedMultiplier;
+                        else ball->velocity.y = BALL_INITIAL_SPEED * speedMultiplier;
+                        
+                        ball->velocity.x = BALL_INITIAL_SPEED * speedMultiplier;
+                        
+                        ClearPowerUps();
+                    }
+
                     if (GetRandomValue(1, 10) <= 3)
                     {
                         int power_type = GetRandomValue(1, 3); 
