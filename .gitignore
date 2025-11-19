@@ -1,0 +1,10 @@
+# Executáveis e objetos
+arkanoid
+*.o
+*.exe
+
+# Dados locais
+*.dat
+
+# Arquivos do VS Code (configurações locais)
+.vscode/
