@@ -175,6 +175,9 @@ void CheckBallBlockCollision(Ball *ball)
             {
                 if (CheckCollisionCircleRec(ball->position, ball->radius, game_blocks[i][j].rect))
                 {
+                    ball->position.x -= ball->velocity.x;
+                    ball->position.y -= ball->velocity.y;
+                    
                     ball->velocity.y *= -1.0f;
                     
                     game_blocks[i][j].is_active = 0; 
