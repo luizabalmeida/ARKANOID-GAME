@@ -1,6 +1,7 @@
 #include "raylib.h"
 
 #define MAX_SCORE_NAME 20
+#define MAX_SKINS 23 
 
 typedef struct {
     Rectangle rect;
@@ -13,7 +14,8 @@ typedef struct {
     Vector2 position;
     Vector2 velocity;
     float radius;
-} Ball;
+}
+Ball;
 
 typedef struct {
     Rectangle rect;
@@ -32,4 +34,10 @@ typedef struct {
     int score;
 } HighScore;
 
+typedef struct {
+    Texture2D textures[MAX_SKINS];
+    int current_skin_index;
+} SkinManager;
+
 extern PowerUpNode *powerup_head;
+extern SkinManager ball_skins;

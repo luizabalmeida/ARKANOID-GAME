@@ -10,12 +10,13 @@
 #define BLOCK_ROWS 8
 #define BLOCK_COLS 10
 
-#define BALL_RADIUS 15.0f
+#define BALL_RADIUS 25.0f
 #define BALL_INITIAL_SPEED 10.0f
 #define PADDLE_SPEED 15.0f
 
 #define MAX_HIGH_SCORES 5
 #define MAX_NAME_LENGTH 9
+#define MAX_SKINS 23
 
 int current_screen_width = 800;
 int current_screen_height = 450;
@@ -28,12 +29,26 @@ PowerUpNode *powerup_head = NULL;
 int current_score = 0;
 int active_blocks_count = 0; 
 
-int game_state = 3;
+int game_state = 4;
 HighScore top_scores[MAX_HIGH_SCORES];
 
 char player_name[MAX_NAME_LENGTH + 1] = "PLAYER";
 int letter_count = 6;
 bool is_typing = false;
+
+const char *SKIN_FILE_NAMES[MAX_SKINS] = {
+    "gelo", "terra", "trovao", "vidente", "diamante", "xadrez", "camuflada", "mel", 
+    "pixelada", "labirinto", "morango", "chocolate", "arco-iris", "donut", "pizza", 
+    "hamburguer", "sorvete", "sushi", "panda", "cachorro", "coelho", "raposa", "melancia"
+};
+
+const char *SKIN_DISPLAY_NAMES[MAX_SKINS] = {
+    "GELO", "TERRA", "TROVÃO", "VIDENTE", "DIAMANTE", "XADREZ", "CAMUFLADA", "MEL", 
+    "PIXELADA", "LABIRINTO", "MORANGO", "CHOCOLATE", "ARCO-ÍRIS", "DONUT", "PIZZA", 
+    "HAMBÚRGUER", "SORVETE", "SUSHI", "PANDA", "CACHORRO", "COELHO", "RAPOSA", "MELANCIA"
+};
+
+SkinManager ball_skins;
 
 void InitializeBlocks()
 {
@@ -191,9 +206,7 @@ void CheckBallBlockCollision(Ball *ball)
                         ball->position = (Vector2){ current_screen_width / 2.0f, player_paddle.rect.y - BALL_RADIUS };
                         
                         float speedMultiplier = 1.1f;
-                        if (ball->velocity.y > 0) ball->velocity.y = -BALL_INITIAL_SPEED * speedMultiplier;
-                        else ball->velocity.y = BALL_INITIAL_SPEED * speedMultiplier;
-                        
+                        ball->velocity.y = (ball->velocity.y > 0) ? -BALL_INITIAL_SPEED * speedMultiplier : BALL_INITIAL_SPEED * speedMultiplier;
                         ball->velocity.x = BALL_INITIAL_SPEED * speedMultiplier;
                         
                         ClearPowerUps();
@@ -282,6 +295,60 @@ void UpdateGame()
     }
 }
 
+void DrawSkinSelector()
+{
+    float font_size_title = current_screen_height * 0.08f;
+    float font_size_text = current_screen_height * 0.04f;
+    
+    DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.9f));
+    
+    DrawText("SELECIONE SUA BOLA", 
+             current_screen_width/2 - MeasureText("SELECIONE SUA BOLA", font_size_title)/2, 
+             current_screen_height/6, 
+             font_size_title, YELLOW);
+             
+    const char *skin_name = SKIN_DISPLAY_NAMES[ball_skins.current_skin_index];
+    DrawText(skin_name, 
+             current_screen_width/2 - MeasureText(skin_name, font_size_text * 1.5f)/2, 
+             current_screen_height * 0.28f, 
+             font_size_text * 1.5f, WHITE);
+             
+    Texture2D current_texture = ball_skins.textures[ball_skins.current_skin_index];
+    
+    float preview_size = current_screen_height * 0.20f;
+    Rectangle destRect = { 
+        current_screen_width/2 - preview_size/2, 
+        current_screen_height/2 - preview_size/2, 
+        preview_size, 
+        preview_size 
+    };
+    Rectangle sourceRect = { 0.0f, 0.0f, (float)current_texture.width, (float)current_texture.height };
+
+    DrawTexturePro(current_texture, sourceRect, destRect, (Vector2){0,0}, 0.0f, WHITE);
+    
+    DrawText("<", current_screen_width/2 - preview_size/2 - 50, current_screen_height/2 - 20, font_size_title, LIME);
+    DrawText(">", current_screen_width/2 + preview_size/2 + 20, current_screen_height/2 - 20, font_size_title, LIME);
+    
+    DrawText("Use SETAS ESQUERDA/DIREITA | ENTER para Continuar", 
+             current_screen_width/2 - MeasureText("Use SETAS ESQUERDA/DIREITA | ENTER para Continuar", font_size_text)/2, 
+             current_screen_height * 0.85f, 
+             font_size_text, RAYWHITE);
+
+    if (IsKeyPressed(KEY_RIGHT))
+    {
+        ball_skins.current_skin_index = (ball_skins.current_skin_index + 1) % MAX_SKINS;
+    }
+    if (IsKeyPressed(KEY_LEFT))
+    {
+        ball_skins.current_skin_index = (ball_skins.current_skin_index - 1 + MAX_SKINS) % MAX_SKINS;
+    }
+    if (IsKeyPressed(KEY_ENTER))
+    {
+        game_state = 3;
+    }
+}
+
+
 void DrawGame()
 {
     BeginDrawing();
@@ -301,7 +368,21 @@ void DrawGame()
         }
 
         DrawRectangleRec(player_paddle.rect, BLUE);
-        DrawCircleV(game_ball.position, game_ball.radius, WHITE);
+        
+        if (game_state != 4) 
+        {
+            Texture2D current_texture = ball_skins.textures[ball_skins.current_skin_index];
+            
+            Rectangle destRect = { 
+                game_ball.position.x - game_ball.radius, 
+                game_ball.position.y - game_ball.radius, 
+                game_ball.radius * 2, 
+                game_ball.radius * 2 
+            };
+            Rectangle sourceRect = { 0.0f, 0.0f, (float)current_texture.width, (float)current_texture.height };
+            
+            DrawTexturePro(current_texture, sourceRect, destRect, (Vector2){0,0}, 0.0f, WHITE);
+        }
 
         PowerUpNode *current = powerup_head;
         while (current != NULL)
@@ -325,13 +406,13 @@ void DrawGame()
                      current_screen_height/4, 
                      font_size_large, RED);
             
-            DrawText("TENTAR NOVAMENTE (ENTER)", 
-                     current_screen_width/2 - MeasureText("TENTAR NOVAMENTE (ENTER)", font_size_options)/2, 
+            DrawText("CONTINUAR (ENTER)", 
+                     current_screen_width/2 - MeasureText("CONTINUAR (ENTER)", font_size_options)/2, 
                      current_screen_height/2 - font_size_options, 
                      font_size_options, WHITE);
                      
-            DrawText("TROCAR PLAYER (ESPACO)", 
-                     current_screen_width/2 - MeasureText("TROCAR PLAYER (ESPACO)", font_size_options)/2, 
+            DrawText("VOLTAR AO MENU (ESPACO)", 
+                     current_screen_width/2 - MeasureText("VOLTAR AO MENU (ESPACO)", font_size_options)/2, 
                      current_screen_height/2 + font_size_options, 
                      font_size_options, WHITE);
             
@@ -358,7 +439,8 @@ void DrawGame()
             }
             else if (IsKeyPressed(KEY_SPACE))
             {
-                game_state = 3;
+                ClearPowerUps(); 
+                game_state = 4;
             }
         }
         
@@ -444,6 +526,10 @@ void DrawGame()
                 }
             }
         }
+        else if (game_state == 4) 
+        {
+            DrawSkinSelector(); 
+        }
 
     EndDrawing();
 }
@@ -466,6 +552,14 @@ int main(void)
     LoadScores();
     InitializeGame();
 
+    for (int i = 0; i < MAX_SKINS; i++)
+    {
+        char path[100];
+        sprintf(path, "%s.png", SKIN_FILE_NAMES[i]); 
+        ball_skins.textures[i] = LoadTexture(path);
+    }
+    ball_skins.current_skin_index = 0;
+    
     while (!WindowShouldClose())
     {
         if (game_state == 1)
@@ -480,10 +574,19 @@ int main(void)
         {
             
         }
+        else if (game_state == 4)
+        {
+            
+        }
         
         DrawGame();
     }
 
+    for (int i = 0; i < MAX_SKINS; i++)
+    {
+        UnloadTexture(ball_skins.textures[i]);
+    }
+    
     CloseWindow();
     return 0;
 }
