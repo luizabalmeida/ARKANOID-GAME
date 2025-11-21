@@ -8,6 +8,7 @@ typedef struct {
     int type;
     Color color;
     int is_active;
+    int life;
 } Block;
 
 typedef struct {
