@@ -49,6 +49,7 @@ const char *SKIN_DISPLAY_NAMES[MAX_SKINS] = {
 };
 
 SkinManager ball_skins;
+Texture2D background_textures[MAX_SKINS];
 
 void InitializeBlocks()
 {
@@ -360,12 +361,18 @@ void DrawSkinSelector()
     }
 }
 
-
 void DrawGame()
 {
     BeginDrawing();
     
         ClearBackground(DARKGRAY);
+
+        Texture2D current_bg = background_textures[ball_skins.current_skin_index];
+        Rectangle bgSource = { 0.0f, 0.0f, (float)current_bg.width, (float)current_bg.height };
+        Rectangle bgDest = { 0.0f, 0.0f, (float)current_screen_width, (float)current_screen_height };
+        DrawTexturePro(current_bg, bgSource, bgDest, (Vector2){0,0}, 0.0f, WHITE);
+        
+        DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.3f));
         
         for (int i = 0; i < BLOCK_ROWS; i++)
         {
@@ -568,6 +575,10 @@ int main(void)
         char path[100];
         sprintf(path, "skins/%s.png", SKIN_FILE_NAMES[i]); 
         ball_skins.textures[i] = LoadTexture(path);
+
+        char bgPath[100];
+        sprintf(bgPath, "backgrounds/%s.png", SKIN_FILE_NAMES[i]);
+        background_textures[i] = LoadTexture(bgPath);
     }
     ball_skins.current_skin_index = 0;
     
@@ -596,6 +607,7 @@ int main(void)
     for (int i = 0; i < MAX_SKINS; i++)
     {
         UnloadTexture(ball_skins.textures[i]);
+        UnloadTexture(background_textures[i]);
     }
     
     CloseWindow();
