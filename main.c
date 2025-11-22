@@ -36,6 +36,8 @@ char player_name[MAX_NAME_LENGTH + 1] = "PLAYER";
 int letter_count = 6;
 bool is_typing = false;
 
+Texture2D background_textures[MAX_SKINS];
+
 const char *SKIN_FILE_NAMES[MAX_SKINS] = {
     "gelo", "terra", "trovao", "vidente", "diamante", "xadrez", "camuflada", "mel", 
     "pixelada", "labirinto", "morango", "chocolate", "arco-iris", "donut", "pizza", 
@@ -49,9 +51,40 @@ const char *SKIN_DISPLAY_NAMES[MAX_SKINS] = {
 };
 
 SkinManager ball_skins;
-Texture2D background_textures[MAX_SKINS];
+int LEVEL_LAYOUTS[3][BLOCK_ROWS][BLOCK_COLS] = {
+    { 
+        {3,3,3,3,3,3,3,3,3,3},
+        {3,3,3,3,3,3,3,3,3,3},
+        {2,2,2,2,2,2,2,2,2,2},
+        {2,2,2,2,2,2,2,2,2,2},
+        {1,1,1,1,1,1,1,1,1,1},
+        {1,1,1,1,1,1,1,1,1,1},
+        {0,0,0,0,0,0,0,0,0,0},
+        {0,0,0,0,0,0,0,0,0,0}
+    },
+    { 
+        {3,0,2,0,1,1,0,2,0,3},
+        {3,0,2,0,1,1,0,2,0,3},
+        {3,0,2,0,1,1,0,2,0,3},
+        {3,0,2,0,1,1,0,2,0,3},
+        {3,0,2,0,1,1,0,2,0,3},
+        {3,0,2,0,1,1,0,2,0,3},
+        {3,3,2,2,1,1,2,2,3,3},
+        {0,0,0,0,0,0,0,0,0,0}
+    },
+    {
+        {3,3,3,3,3,3,3,3,3,3},
+        {3,0,0,0,0,0,0,0,0,3},
+        {3,0,2,2,2,2,2,2,0,3},
+        {3,0,2,0,0,0,0,2,0,3},
+        {3,0,2,0,1,1,0,2,0,3},
+        {3,0,2,2,2,2,2,2,0,3},
+        {3,0,0,0,0,0,0,0,0,3},
+        {3,3,3,3,3,3,3,3,3,3}
+    }
+};
 
-void InitializeBlocks()
+void InitializeBlocks(int levelIndex)
 {
     float block_width = (float)current_screen_width / BLOCK_COLS;
     float block_height = current_screen_height * 0.05f;
@@ -64,24 +97,23 @@ void InitializeBlocks()
         for (int j = 0; j < BLOCK_COLS; j++)
         {
             game_blocks[i][j].rect = (Rectangle){ j * block_width, top_offset + i * block_height, block_width, block_height };
-            
-            if (i < 2) {
-                game_blocks[i][j].color = RED;
-                game_blocks[i][j].life = 3;
-            }
-            else if (i < 4) {
-                game_blocks[i][j].color = ORANGE;
-                game_blocks[i][j].life = 2;
-            }
-            else {
-                game_blocks[i][j].color = GREEN;
-                game_blocks[i][j].life = 1;
-            }
+            int type = LEVEL_LAYOUTS[levelIndex][i][j];
 
-            game_blocks[i][j].is_active = 1;
-            game_blocks[i][j].type = 1;
-            
-            active_blocks_count++; 
+            if (type > 0) 
+            {
+                game_blocks[i][j].is_active = 1;
+                game_blocks[i][j].type = 1;
+                game_blocks[i][j].life = type; 
+                if (type == 3) game_blocks[i][j].color = RED;
+                else if (type == 2) game_blocks[i][j].color = ORANGE;
+                else game_blocks[i][j].color = GREEN;
+
+                active_blocks_count++; 
+            }
+            else 
+            {
+                game_blocks[i][j].is_active = 0;
+            }
         }
     }
 }
@@ -100,7 +132,9 @@ void InitializeGame()
     game_ball.velocity = (Vector2){ BALL_INITIAL_SPEED, -BALL_INITIAL_SPEED };
     
     current_score = 0;
-    InitializeBlocks();
+ 
+    int randomLevel = GetRandomValue(0, 2);
+    InitializeBlocks(randomLevel); 
 }
 
 void LoadScores() {
@@ -173,10 +207,11 @@ void ApplyPowerUp(int type)
         case 2: 
             player_paddle.rect.width = current_screen_width * 0.08f;
             break;
-        case 3: 
+        case 3:
         {
             float current_speed_x = (game_ball.velocity.x > 0) ? 1.0f : -1.0f;
             float current_speed_y = (game_ball.velocity.y > 0) ? 1.0f : -1.0f;
+            
             game_ball.velocity.x = (BALL_INITIAL_SPEED * 0.6f) * current_speed_x;
             game_ball.velocity.y = (BALL_INITIAL_SPEED * 0.6f) * current_speed_y;
             break;
@@ -216,7 +251,9 @@ void CheckBallBlockCollision(Ball *ball)
                         
                         if (active_blocks_count <= 0) 
                         {
-                            InitializeBlocks(); 
+                            int randomLevel = GetRandomValue(0, 2); 
+                            InitializeBlocks(randomLevel); 
+                            
                             ball->position = (Vector2){ current_screen_width / 2.0f, player_paddle.rect.y - BALL_RADIUS };
                             
                             float speedMultiplier = 1.1f;
@@ -268,6 +305,7 @@ void UpdateGame()
         float hit_point = game_ball.position.x - player_paddle.rect.x;
         float relative_hit = hit_point / player_paddle.rect.width;
         float direction = (relative_hit * 2.0f - 1.0f);
+        
         float speed = BALL_INITIAL_SPEED * 1.05f; 
         
         game_ball.velocity.x = direction * speed;
@@ -312,8 +350,18 @@ void DrawSkinSelector()
 {
     float font_size_title = current_screen_height * 0.08f;
     float font_size_text = current_screen_height * 0.04f;
+
+    Texture2D bg = background_textures[ball_skins.current_skin_index];
+    if (bg.id > 0) {
+        DrawTexturePro(bg, 
+                       (Rectangle){0, 0, bg.width, bg.height},
+                       (Rectangle){0, 0, current_screen_width, current_screen_height},
+                       (Vector2){0,0}, 0.0f, WHITE);
+    } else {
+        DrawRectangleGradientV(0, 0, current_screen_width, current_screen_height, DARKBLUE, BLACK);
+    }
     
-    DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.9f));
+    DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.7f));
     
     DrawText("SELECIONE SUA BOLA", 
              current_screen_width/2 - MeasureText("SELECIONE SUA BOLA", font_size_title)/2, 
@@ -347,30 +395,27 @@ void DrawSkinSelector()
              current_screen_height * 0.85f, 
              font_size_text, RAYWHITE);
 
-    if (IsKeyPressed(KEY_RIGHT))
-    {
-        ball_skins.current_skin_index = (ball_skins.current_skin_index + 1) % MAX_SKINS;
-    }
-    if (IsKeyPressed(KEY_LEFT))
-    {
-        ball_skins.current_skin_index = (ball_skins.current_skin_index - 1 + MAX_SKINS) % MAX_SKINS;
-    }
-    if (IsKeyPressed(KEY_ENTER))
-    {
-        game_state = 3; 
-    }
+    if (IsKeyPressed(KEY_RIGHT)) ball_skins.current_skin_index = (ball_skins.current_skin_index + 1) % MAX_SKINS;
+    if (IsKeyPressed(KEY_LEFT)) ball_skins.current_skin_index = (ball_skins.current_skin_index - 1 + MAX_SKINS) % MAX_SKINS;
+    if (IsKeyPressed(KEY_ENTER)) game_state = 3; 
 }
+
 
 void DrawGame()
 {
     BeginDrawing();
     
         ClearBackground(DARKGRAY);
-
-        Texture2D current_bg = background_textures[ball_skins.current_skin_index];
-        Rectangle bgSource = { 0.0f, 0.0f, (float)current_bg.width, (float)current_bg.height };
-        Rectangle bgDest = { 0.0f, 0.0f, (float)current_screen_width, (float)current_screen_height };
-        DrawTexturePro(current_bg, bgSource, bgDest, (Vector2){0,0}, 0.0f, WHITE);
+        
+        Texture2D bg = background_textures[ball_skins.current_skin_index];
+        if (bg.id > 0) {
+            DrawTexturePro(bg, 
+                           (Rectangle){0, 0, bg.width, bg.height},
+                           (Rectangle){0, 0, current_screen_width, current_screen_height},
+                           (Vector2){0,0}, 0.0f, WHITE);
+        } else {
+            DrawRectangleGradientV(0, 0, current_screen_width, current_screen_height, DARKBLUE, BLACK);
+        }
         
         DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.3f));
         
@@ -380,13 +425,23 @@ void DrawGame()
             {
                 if (game_blocks[i][j].is_active)
                 {
-                    DrawRectangleRec(game_blocks[i][j].rect, game_blocks[i][j].color);
-                    DrawRectangleLinesEx(game_blocks[i][j].rect, 1, BLACK); 
+                    Rectangle rect = game_blocks[i][j].rect;
+                    
+                    DrawRectangleRec(rect, game_blocks[i][j].color);
+                    
+                    DrawRectangle(rect.x, rect.y, rect.width, 4, Fade(WHITE, 0.5f));
+                    DrawRectangle(rect.x, rect.y, 4, rect.height, Fade(WHITE, 0.5f));
+
+                    DrawRectangle(rect.x, rect.y + rect.height - 4, rect.width, 4, Fade(BLACK, 0.4f));
+                    DrawRectangle(rect.x + rect.width - 4, rect.y, 4, rect.height, Fade(BLACK, 0.4f));
+
+                    DrawRectangleLinesEx(rect, 1, BLACK); 
                 }
             }
         }
 
         DrawRectangleRec(player_paddle.rect, BLUE);
+        DrawRectangleLinesEx(player_paddle.rect, 2, SKYBLUE);
         
         if (game_state != 4) 
         {
@@ -405,6 +460,7 @@ void DrawGame()
         while (current != NULL)
         {
             DrawRectangleRec(current->rect, (current->type == 1) ? MAGENTA : ((current->type == 2) ? LIME : YELLOW));
+            DrawRectangleLinesEx(current->rect, 1, RAYWHITE);
             current = current->next;
         }
         
@@ -417,51 +473,24 @@ void DrawGame()
             float font_size_options = current_screen_height * 0.035f;
 
             DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.8f));
-            
-            DrawText("GAME OVER!", 
-                     current_screen_width/2 - MeasureText("GAME OVER!", font_size_large)/2, 
-                     current_screen_height/4, 
-                     font_size_large, RED);
-            
-            DrawText("CONTINUAR (ENTER)", 
-                     current_screen_width/2 - MeasureText("CONTINUAR (ENTER)", font_size_options)/2, 
-                     current_screen_height/2 - font_size_options, 
-                     font_size_options, WHITE);
-                     
-            DrawText("VOLTAR AO MENU (ESPACO)", 
-                     current_screen_width/2 - MeasureText("VOLTAR AO MENU (ESPACO)", font_size_options)/2, 
-                     current_screen_height/2 + font_size_options, 
-                     font_size_options, WHITE);
+            DrawText("GAME OVER!", current_screen_width/2 - MeasureText("GAME OVER!", font_size_large)/2, current_screen_height/4, font_size_large, RED);
+            DrawText("CONTINUAR (ENTER)", current_screen_width/2 - MeasureText("CONTINUAR (ENTER)", font_size_options)/2, current_screen_height/2 - font_size_options, font_size_options, WHITE);
+            DrawText("VOLTAR AO MENU (ESPACO)", current_screen_width/2 - MeasureText("VOLTAR AO MENU (ESPACO)", font_size_options)/2, current_screen_height/2 + font_size_options, font_size_options, WHITE);
             
             float ranking_y_start = current_screen_height/2 + font_size_large + font_size_options;
-            DrawText("TOP 5 SCORES:", 
-                     current_screen_width/2 - MeasureText("TOP 5 SCORES:", font_size_small)/2, 
-                     ranking_y_start, 
-                     font_size_small, YELLOW);
-                     
+            DrawText("TOP 5 SCORES:", current_screen_width/2 - MeasureText("TOP 5 SCORES:", font_size_small)/2, ranking_y_start, font_size_small, YELLOW);
+            
             for (int i = 0; i < MAX_HIGH_SCORES; i++) {
                 char text_buffer[50];
                 sprintf(text_buffer, "%d. %s: %d", i + 1, top_scores[i].name, top_scores[i].score);
-                
-                DrawText(text_buffer, 
-                         current_screen_width/2 - MeasureText(text_buffer, font_size_small)/2, 
-                         ranking_y_start + font_size_small + i * (font_size_small * 1.2f), 
-                         font_size_small, WHITE);
+                DrawText(text_buffer, current_screen_width/2 - MeasureText(text_buffer, font_size_small)/2, ranking_y_start + font_size_small + i * (font_size_small * 1.2f), font_size_small, WHITE);
             }
             
-            if (IsKeyPressed(KEY_ENTER))
-            {
-                InitializeGame();
-                game_state = 1;
-            }
-            else if (IsKeyPressed(KEY_SPACE))
-            {
-                ClearPowerUps(); 
-                game_state = 4;
-            }
+            if (IsKeyPressed(KEY_ENTER)) { InitializeGame(); game_state = 1; }
+            else if (IsKeyPressed(KEY_SPACE)) { ClearPowerUps(); game_state = 4; }
         }
         
-        else if (game_state == 3) 
+        else if (game_state == 3)
         {
             float font_size_title = current_screen_height * 0.08f;
             float font_size_text = current_screen_height * 0.04f;
@@ -471,75 +500,35 @@ void DrawGame()
             
             if (!is_typing) {
                 sprintf(instruction_text, "JOGAR COMO: %s", player_name);
-                DrawText(instruction_text, 
-                         current_screen_width/2 - MeasureText(instruction_text, font_size_title)/2, 
-                         current_screen_height/3, 
-                         font_size_title, GREEN);
-                         
-                DrawText("ENTER para Manter | ESPACO para Mudar Nome", 
-                         current_screen_width/2 - MeasureText("ENTER para Manter | ESPACO para Mudar Nome", font_size_text)/2, 
-                         current_screen_height/2, 
-                         font_size_text, WHITE);
+                DrawText(instruction_text, current_screen_width/2 - MeasureText(instruction_text, font_size_title)/2, current_screen_height/3, font_size_title, GREEN);
+                DrawText("ENTER para Manter | ESPACO para Mudar Nome", current_screen_width/2 - MeasureText("ENTER para Manter | ESPACO para Mudar Nome", font_size_text)/2, current_screen_height/2, font_size_text, WHITE);
 
-                if (IsKeyPressed(KEY_ENTER)) {
-                    InitializeGame();
-                    game_state = 1;
-                } else if (IsKeyPressed(KEY_SPACE)) {
-                    is_typing = true;
-                    letter_count = 0;
-                    player_name[0] = '\0';
-                }
+                if (IsKeyPressed(KEY_ENTER)) { InitializeGame(); game_state = 1; } 
+                else if (IsKeyPressed(KEY_SPACE)) { is_typing = true; letter_count = 0; player_name[0] = '\0'; }
 
             } else {
-                DrawText("INSIRA SEU NOME (MAX 9 LETRAS):", 
-                         current_screen_width/2 - MeasureText("INSIRA SEU NOME (MAX 9 LETRAS):", font_size_text)/2, 
-                         current_screen_height/3, 
-                         font_size_text, WHITE);
-                         
+                DrawText("INSIRA SEU NOME (MAX 9 LETRAS):", current_screen_width/2 - MeasureText("INSIRA SEU NOME (MAX 9 LETRAS):", font_size_text)/2, current_screen_height/3, font_size_text, WHITE);
+                
                 char display_name[MAX_NAME_LENGTH + 2];
                 strcpy(display_name, player_name);
                 if ((GetTime() / 0.5f) < (int)(GetTime() / 0.5f)) display_name[letter_count] = '_';
                 display_name[letter_count + 1] = '\0';
-                
-                DrawText(display_name, 
-                         current_screen_width/2 - MeasureText(display_name, font_size_title)/2, 
-                         current_screen_height/2, 
-                         font_size_title, RAYWHITE);
-                         
-                DrawText("ENTER para Confirmar", 
-                         current_screen_width/2 - MeasureText("ENTER para Confirmar", font_size_text)/2, 
-                         current_screen_height/2 + font_size_title, 
-                         font_size_text, YELLOW);
+                DrawText(display_name, current_screen_width/2 - MeasureText(display_name, font_size_title)/2, current_screen_height/2, font_size_title, RAYWHITE);
+                DrawText("ENTER para Confirmar", current_screen_width/2 - MeasureText("ENTER para Confirmar", font_size_text)/2, current_screen_height/2 + font_size_title, font_size_text, YELLOW);
 
                 int key = GetCharPressed();
-                while (key > 0)
-                {
-                    if ((key >= 32) && (key <= 125) && (letter_count < MAX_NAME_LENGTH))
-                    {
-                        player_name[letter_count] = (char)key;
-                        letter_count++;
-                        player_name[letter_count] = '\0';
+                while (key > 0) {
+                    if ((key >= 32) && (key <= 125) && (letter_count < MAX_NAME_LENGTH)) {
+                        player_name[letter_count] = (char)key; letter_count++; player_name[letter_count] = '\0';
                     }
                     key = GetCharPressed();
                 }
-
-                if (IsKeyPressed(KEY_BACKSPACE))
-                {
-                    letter_count--;
-                    if (letter_count < 0) letter_count = 0;
-                    player_name[letter_count] = '\0';
+                if (IsKeyPressed(KEY_BACKSPACE)) {
+                    letter_count--; if (letter_count < 0) letter_count = 0; player_name[letter_count] = '\0';
                 }
-
-                if (IsKeyPressed(KEY_ENTER) && letter_count > 0)
-                {
-                    is_typing = false;
-                    InitializeGame();
-                    game_state = 1;
-                } else if (IsKeyPressed(KEY_ENTER) && letter_count == 0) {
-                    strcpy(player_name, "PLAYER"); 
-                    is_typing = false;
-                    InitializeGame();
-                    game_state = 1;
+                if (IsKeyPressed(KEY_ENTER)) {
+                    if (letter_count == 0) strcpy(player_name, "PLAYER");
+                    is_typing = false; InitializeGame(); game_state = 1;
                 }
             }
         }
@@ -558,7 +547,6 @@ int main(void)
     int monitorHeight = GetMonitorHeight(0);
     
     InitWindow(monitorWidth, monitorHeight, GAME_NAME);
-    
     ToggleFullscreen(); 
     
     current_screen_width = GetScreenWidth();
@@ -584,23 +572,7 @@ int main(void)
     
     while (!WindowShouldClose())
     {
-        if (game_state == 1)
-        {
-            UpdateGame();
-        }
-        else if (game_state == 2)
-        {
-            
-        }
-        else if (game_state == 3)
-        {
-            
-        }
-        else if (game_state == 4)
-        {
-            
-        }
-        
+        if (game_state == 1) UpdateGame();
         DrawGame();
     }
 
