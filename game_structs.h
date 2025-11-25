@@ -5,6 +5,7 @@
 #define NUM_PARTICLES 100 
 #define PARTICLE_LENGTH_MAX 15
 #define POWERUP_REVERSE_CONTROLS 4 
+#define POWERUP_GUN_PADDLE 5
 
 typedef struct {
     Rectangle rect;
@@ -25,6 +26,8 @@ typedef struct {
     float speed;
     bool controls_reversed; 
     double time_effect_started; 
+    bool has_gun;
+    double time_last_shot;
 } Paddle;
 
 typedef struct PowerUp {
@@ -51,6 +54,14 @@ typedef struct {
     int current_skin_index;
 } SkinManager;
 
+typedef struct Bullet {
+    Rectangle rect;
+    float speed;
+    bool is_active;
+    struct Bullet *next;
+} Bullet;
+
 extern PowerUpNode *powerup_head;
 extern SkinManager ball_skins;
 extern FallingParticle particles[NUM_PARTICLES];
+extern Bullet *bullet_head;

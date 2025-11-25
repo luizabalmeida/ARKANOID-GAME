@@ -19,6 +19,11 @@
 #define MAX_NAME_LENGTH 9
 #define MAX_SKINS 23
 
+#define POWERUP_REVERSE_CONTROLS 4
+#define POWERUP_GUN_PADDLE 5
+
+
+// Constantes de velocidade
 const float PARTICLE_SPEED_MIN = 1.0f;
 const float PARTICLE_SPEED_MAX = 3.0f;
 const float PARTICLE_LENGTH_MIN = 5.0f;
@@ -31,6 +36,7 @@ Block game_blocks[BLOCK_ROWS][BLOCK_COLS];
 Paddle player_paddle;
 Ball game_ball;
 PowerUpNode *powerup_head = NULL;
+Bullet *bullet_head = NULL; // Lista de balas
 
 int current_score = 0;
 int active_blocks_count = 0; 
@@ -42,6 +48,7 @@ char player_name[MAX_NAME_LENGTH + 1] = "PLAYER";
 int letter_count = 6;
 bool is_typing = false;
 
+// MATRIZ DE LAYOUTS
 int LEVEL_LAYOUTS[3][BLOCK_ROWS][BLOCK_COLS] = {
     { 
         {3,3,3,3,3,3,3,3,3,3},
@@ -77,7 +84,7 @@ int LEVEL_LAYOUTS[3][BLOCK_ROWS][BLOCK_COLS] = {
 
 const char *SKIN_FILE_NAMES[MAX_SKINS] = {
     "gelo", "terra", "trovao", "vidente", "diamante", "xadrez", "camuflada", "mel", 
-    "pixelada", "labirinto", "morango", "chocolate", "arco-iris", "donut", "pizza", 
+    "pixelada", "labirinto", "morango", "chocolate", "arco_iris", "donut", "pizza", 
     "hamburger", "sorvete", "sushi", "panda", "cachorro", "coelho", "raposa", "melancia"
 };
 
@@ -88,11 +95,10 @@ const char *SKIN_DISPLAY_NAMES[MAX_SKINS] = {
 };
 
 SkinManager ball_skins;
-
 FallingParticle particles[NUM_PARTICLES];
 Texture2D background_textures[MAX_SKINS];
 
-
+// --- FUNÇÕES DE PARTÍCULAS ---
 void InitializeParticles() {
     for (int i = 0; i < NUM_PARTICLES; i++) {
         particles[i].position.x = GetRandomValue(0, current_screen_width);
@@ -114,6 +120,15 @@ void UpdateParticles() {
         }
     }
 }
+
+void DrawParticles() {
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+        DrawLine(particles[i].position.x, particles[i].position.y,
+                 particles[i].position.x, particles[i].position.y + particles[i].length,
+                 particles[i].color);
+    }
+}
+// -----------------------------
 
 void InitializeBlocks(int levelIndex)
 {
@@ -149,6 +164,40 @@ void InitializeBlocks(int levelIndex)
     }
 }
 
+// FUNÇÃO DE TIRO
+void ShootBullet()
+{
+    if (GetTime() - player_paddle.time_last_shot < 0.25f) return;
+    
+    Bullet *newBullet = (Bullet *)malloc(sizeof(Bullet));
+    if (newBullet == NULL) return;
+
+    newBullet->rect = (Rectangle){ 
+        player_paddle.rect.x + player_paddle.rect.width / 2 - 3,
+        player_paddle.rect.y, 
+        6,
+        15
+    };
+    newBullet->speed = 12.0f;
+    newBullet->is_active = true;
+    newBullet->next = bullet_head;
+    bullet_head = newBullet;
+    
+    player_paddle.time_last_shot = GetTime();
+}
+
+void ClearPowerUps()
+{
+    PowerUpNode *current = powerup_head;
+    PowerUpNode *next;
+    while (current != NULL) {
+        next = current->next;
+        free(current);
+        current = next;
+    }
+    powerup_head = NULL;
+}
+
 void InitializeGame()
 {
     player_paddle.rect.width = current_screen_width * 0.125f;
@@ -160,6 +209,20 @@ void InitializeGame()
 
     player_paddle.controls_reversed = false;
     player_paddle.time_effect_started = 0.0;
+    
+    player_paddle.has_gun = false;
+    player_paddle.time_last_shot = 0.0;
+
+    // Limpar balas
+    Bullet *current = bullet_head;
+    while (current != NULL) {
+        Bullet *next = current->next;
+        free(current);
+        current = next;
+    }
+    bullet_head = NULL;
+    
+    ClearPowerUps();
 
     game_ball.position = (Vector2){ current_screen_width / 2.0f, player_paddle.rect.y - BALL_RADIUS };
     game_ball.radius = BALL_RADIUS;
@@ -219,38 +282,31 @@ void AddPowerUp(float x, float y, int type)
     powerup_head = newNode;
 }
 
-void ClearPowerUps()
-{
-    PowerUpNode *current = powerup_head;
-    PowerUpNode *next;
-    while (current != NULL) {
-        next = current->next;
-        free(current);
-        current = next;
-    }
-    powerup_head = NULL;
-}
-
 void ApplyPowerUp(int type)
 {
     switch (type) {
-        case 1: 
+        case 1: // Aumenta Raquete (MAGENTA)
             player_paddle.rect.width = current_screen_width * 0.20f;
             break;
-        case 2: 
+        case 2: // Diminui Raquete (VERDE)
             player_paddle.rect.width = current_screen_width * 0.08f;
             break;
-        case 3:
+        case 3: // Bola Lenta (AMARELO) -- ESTE É O ÚNICO QUE DEVE DEIXAR DEVAGAR
         {
             float current_speed_x = (game_ball.velocity.x > 0) ? 1.0f : -1.0f;
             float current_speed_y = (game_ball.velocity.y > 0) ? 1.0f : -1.0f;
+            // Reduz a velocidade para 60% da inicial
             game_ball.velocity.x = (BALL_INITIAL_SPEED * 0.6f) * current_speed_x;
             game_ball.velocity.y = (BALL_INITIAL_SPEED * 0.6f) * current_speed_y;
             break;
         }
-        case POWERUP_REVERSE_CONTROLS:
+        case POWERUP_REVERSE_CONTROLS: // ID 4 (ROXO)
             player_paddle.controls_reversed = true;
             player_paddle.time_effect_started = GetTime(); 
+            break;
+            
+        case POWERUP_GUN_PADDLE: // ID 5 (VERMELHO) -- SÓ ATIVA A ARMA
+            player_paddle.has_gun = true;
             break;
 
         default: break;
@@ -300,8 +356,8 @@ void CheckBallBlockCollision(Ball *ball)
                             ClearPowerUps();
                         }
 
-                        if (GetRandomValue(1, 10) <= 3) {
-                            int power_type = GetRandomValue(1, POWERUP_REVERSE_CONTROLS); 
+                        if (GetRandomValue(1, 10) <= 4) {
+                            int power_type = GetRandomValue(1, POWERUP_GUN_PADDLE); // Chance de dropar arma
                             AddPowerUp(game_blocks[i][j].rect.x, game_blocks[i][j].rect.y, power_type);
                         }
                     }
@@ -338,6 +394,12 @@ void UpdateGame()
     if (player_paddle.rect.x + player_paddle.rect.width >= current_screen_width) 
         player_paddle.rect.x = current_screen_width - player_paddle.rect.width;
 
+    // TIRO (Input)
+    if (player_paddle.has_gun && IsKeyDown(KEY_SPACE))
+    {
+        ShootBullet();
+    }
+
     game_ball.position.x += game_ball.velocity.x;
     game_ball.position.y += game_ball.velocity.y;
 
@@ -350,7 +412,7 @@ void UpdateGame()
     {
         game_state = 2;
         SaveScores(current_score);
-        ClearPowerUps();
+        // ClearPowerUps e Balas sera feito ao sair da tela de Game Over
     }
     
     if (CheckCollisionCircleRec(game_ball.position, game_ball.radius, player_paddle.rect) && game_ball.velocity.y > 0)
@@ -366,6 +428,51 @@ void UpdateGame()
     }
 
     CheckBallBlockCollision(&game_ball);
+
+    // LÓGICA DE BALAS
+    Bullet *current_bullet = bullet_head;
+    Bullet *prev_bullet = NULL;
+
+    while (current_bullet != NULL)
+    {
+        current_bullet->rect.y -= current_bullet->speed;
+        bool destroyed = false;
+
+        for (int i = 0; i < BLOCK_ROWS; i++) {
+            for (int j = 0; j < BLOCK_COLS; j++) {
+                if (game_blocks[i][j].is_active && CheckCollisionRecs(current_bullet->rect, game_blocks[i][j].rect)) {
+                    game_blocks[i][j].life--;
+                    if (game_blocks[i][j].life <= 0) {
+                        game_blocks[i][j].is_active = 0;
+                        active_blocks_count--;
+                        current_score += 10;
+                        if (active_blocks_count <= 0) {
+                             int randomLevel = GetRandomValue(0, 2); 
+                             InitializeBlocks(randomLevel); 
+                             game_ball.position = (Vector2){ current_screen_width / 2.0f, player_paddle.rect.y - BALL_RADIUS };
+                             ClearPowerUps();
+                        }
+                    }
+                    current_score += 5;
+                    destroyed = true;
+                    break; 
+                }
+            }
+            if (destroyed) break;
+        }
+
+        if (destroyed || current_bullet->rect.y < 0) {
+            if (prev_bullet == NULL) bullet_head = current_bullet->next;
+            else prev_bullet->next = current_bullet->next;
+            Bullet *temp = current_bullet;
+            current_bullet = current_bullet->next;
+            free(temp);
+            continue;
+        }
+        prev_bullet = current_bullet;
+        current_bullet = current_bullet->next;
+    }
+
 
     PowerUpNode *current = powerup_head;
     PowerUpNode *prev = NULL;
@@ -400,15 +507,6 @@ void UpdateGame()
         current = current->next;
     }
 }
-
-void DrawParticles() {
-    for (int i = 0; i < NUM_PARTICLES; i++) {
-        DrawLine(particles[i].position.x, particles[i].position.y,
-                 particles[i].position.x, particles[i].position.y + particles[i].length,
-                 particles[i].color);
-    }
-}
-
 
 void DrawSkinSelector()
 {
@@ -479,6 +577,7 @@ void DrawGame()
 
         Color paddle_color = BLUE;
         if (player_paddle.controls_reversed) { paddle_color = PURPLE; }
+        if (player_paddle.has_gun) { paddle_color = RED; }
         
         DrawRectangleRec(player_paddle.rect, paddle_color);
         DrawRectangleLinesEx(player_paddle.rect, 2, SKYBLUE);
@@ -491,10 +590,24 @@ void DrawGame()
             DrawTexturePro(current_texture, sourceRect, destRect, (Vector2){0,0}, 0.0f, WHITE);
         }
 
+        // Desenho das Balas
+        Bullet *b = bullet_head;
+        while(b != NULL) {
+            DrawRectangleRec(b->rect, ORANGE);
+            b = b->next;
+        }
+
         PowerUpNode *current = powerup_head;
         while (current != NULL)
         {
-            DrawRectangleRec(current->rect, (current->type == 1) ? MAGENTA : ((current->type == 2) ? LIME : ((current->type == 3) ? YELLOW : PURPLE)));
+            Color pColor = YELLOW;
+            if (current->type == 1) pColor = MAGENTA;
+            else if (current->type == 2) pColor = LIME;
+            else if (current->type == 3) pColor = YELLOW;
+            else if (current->type == 4) pColor = PURPLE;
+            else if (current->type == 5) pColor = RED;
+
+            DrawRectangleRec(current->rect, pColor);
             current = current->next;
         }
         
@@ -619,5 +732,6 @@ int main(void)
         UnloadTexture(background_textures[i]);
     }
     
+    CloseWindow();
     return 0;
 }
