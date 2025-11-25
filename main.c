@@ -22,8 +22,6 @@
 #define POWERUP_REVERSE_CONTROLS 4
 #define POWERUP_GUN_PADDLE 5
 
-
-// Constantes de velocidade
 const float PARTICLE_SPEED_MIN = 1.0f;
 const float PARTICLE_SPEED_MAX = 3.0f;
 const float PARTICLE_LENGTH_MIN = 5.0f;
@@ -36,7 +34,7 @@ Block game_blocks[BLOCK_ROWS][BLOCK_COLS];
 Paddle player_paddle;
 Ball game_ball;
 PowerUpNode *powerup_head = NULL;
-Bullet *bullet_head = NULL; // Lista de balas
+Bullet *bullet_head = NULL;
 
 int current_score = 0;
 int active_blocks_count = 0; 
@@ -48,7 +46,6 @@ char player_name[MAX_NAME_LENGTH + 1] = "PLAYER";
 int letter_count = 6;
 bool is_typing = false;
 
-// MATRIZ DE LAYOUTS
 int LEVEL_LAYOUTS[3][BLOCK_ROWS][BLOCK_COLS] = {
     { 
         {3,3,3,3,3,3,3,3,3,3},
@@ -98,7 +95,6 @@ SkinManager ball_skins;
 FallingParticle particles[NUM_PARTICLES];
 Texture2D background_textures[MAX_SKINS];
 
-// --- FUNÇÕES DE PARTÍCULAS ---
 void InitializeParticles() {
     for (int i = 0; i < NUM_PARTICLES; i++) {
         particles[i].position.x = GetRandomValue(0, current_screen_width);
@@ -128,7 +124,6 @@ void DrawParticles() {
                  particles[i].color);
     }
 }
-// -----------------------------
 
 void InitializeBlocks(int levelIndex)
 {
@@ -164,7 +159,6 @@ void InitializeBlocks(int levelIndex)
     }
 }
 
-// FUNÇÃO DE TIRO
 void ShootBullet()
 {
     if (GetTime() - player_paddle.time_last_shot < 0.25f) return;
@@ -213,7 +207,6 @@ void InitializeGame()
     player_paddle.has_gun = false;
     player_paddle.time_last_shot = 0.0;
 
-    // Limpar balas
     Bullet *current = bullet_head;
     while (current != NULL) {
         Bullet *next = current->next;
@@ -285,27 +278,26 @@ void AddPowerUp(float x, float y, int type)
 void ApplyPowerUp(int type)
 {
     switch (type) {
-        case 1: // Aumenta Raquete (MAGENTA)
+        case 1:
             player_paddle.rect.width = current_screen_width * 0.20f;
             break;
-        case 2: // Diminui Raquete (VERDE)
+        case 2:
             player_paddle.rect.width = current_screen_width * 0.08f;
             break;
-        case 3: // Bola Lenta (AMARELO) -- ESTE É O ÚNICO QUE DEVE DEIXAR DEVAGAR
+        case 3:
         {
             float current_speed_x = (game_ball.velocity.x > 0) ? 1.0f : -1.0f;
             float current_speed_y = (game_ball.velocity.y > 0) ? 1.0f : -1.0f;
-            // Reduz a velocidade para 60% da inicial
             game_ball.velocity.x = (BALL_INITIAL_SPEED * 0.6f) * current_speed_x;
             game_ball.velocity.y = (BALL_INITIAL_SPEED * 0.6f) * current_speed_y;
             break;
         }
-        case POWERUP_REVERSE_CONTROLS: // ID 4 (ROXO)
+        case POWERUP_REVERSE_CONTROLS:
             player_paddle.controls_reversed = true;
             player_paddle.time_effect_started = GetTime(); 
             break;
             
-        case POWERUP_GUN_PADDLE: // ID 5 (VERMELHO) -- SÓ ATIVA A ARMA
+        case POWERUP_GUN_PADDLE:
             player_paddle.has_gun = true;
             break;
 
@@ -357,7 +349,7 @@ void CheckBallBlockCollision(Ball *ball)
                         }
 
                         if (GetRandomValue(1, 10) <= 4) {
-                            int power_type = GetRandomValue(1, POWERUP_GUN_PADDLE); // Chance de dropar arma
+                            int power_type = GetRandomValue(1, POWERUP_GUN_PADDLE);
                             AddPowerUp(game_blocks[i][j].rect.x, game_blocks[i][j].rect.y, power_type);
                         }
                     }
@@ -394,7 +386,6 @@ void UpdateGame()
     if (player_paddle.rect.x + player_paddle.rect.width >= current_screen_width) 
         player_paddle.rect.x = current_screen_width - player_paddle.rect.width;
 
-    // TIRO (Input)
     if (player_paddle.has_gun && IsKeyDown(KEY_SPACE))
     {
         ShootBullet();
@@ -412,7 +403,6 @@ void UpdateGame()
     {
         game_state = 2;
         SaveScores(current_score);
-        // ClearPowerUps e Balas sera feito ao sair da tela de Game Over
     }
     
     if (CheckCollisionCircleRec(game_ball.position, game_ball.radius, player_paddle.rect) && game_ball.velocity.y > 0)
@@ -429,7 +419,6 @@ void UpdateGame()
 
     CheckBallBlockCollision(&game_ball);
 
-    // LÓGICA DE BALAS
     Bullet *current_bullet = bullet_head;
     Bullet *prev_bullet = NULL;
 
@@ -590,7 +579,6 @@ void DrawGame()
             DrawTexturePro(current_texture, sourceRect, destRect, (Vector2){0,0}, 0.0f, WHITE);
         }
 
-        // Desenho das Balas
         Bullet *b = bullet_head;
         while(b != NULL) {
             DrawRectangleRec(b->rect, ORANGE);
