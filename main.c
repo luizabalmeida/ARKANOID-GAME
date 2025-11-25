@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 #include <string.h>
+#include <math.h>
 #include "game_structs.h"
 
 #define GAME_NAME "Arkanoid C Project"
@@ -10,13 +11,18 @@
 #define BLOCK_ROWS 8
 #define BLOCK_COLS 10
 
-#define BALL_RADIUS 15.0f
+#define BALL_RADIUS 25.0f
 #define BALL_INITIAL_SPEED 10.0f
 #define PADDLE_SPEED 15.0f
 
 #define MAX_HIGH_SCORES 5
 #define MAX_NAME_LENGTH 9
 #define MAX_SKINS 23
+
+const float PARTICLE_SPEED_MIN = 1.0f;
+const float PARTICLE_SPEED_MAX = 3.0f;
+const float PARTICLE_LENGTH_MIN = 5.0f;
+const float PARTICLE_LENGTH_MAX_VAL = 15.0f;
 
 int current_screen_width = 800;
 int current_screen_height = 450;
@@ -29,28 +35,13 @@ PowerUpNode *powerup_head = NULL;
 int current_score = 0;
 int active_blocks_count = 0; 
 
-int game_state = 4; 
+int game_state = 4;
 HighScore top_scores[MAX_HIGH_SCORES];
 
 char player_name[MAX_NAME_LENGTH + 1] = "PLAYER";
 int letter_count = 6;
 bool is_typing = false;
 
-Texture2D background_textures[MAX_SKINS];
-
-const char *SKIN_FILE_NAMES[MAX_SKINS] = {
-    "gelo", "terra", "trovao", "vidente", "diamante", "xadrez", "camuflada", "mel", 
-    "pixelada", "labirinto", "morango", "chocolate", "arco-iris", "donut", "pizza", 
-    "hamburguer", "sorvete", "sushi", "panda", "cachorro", "coelho", "raposa", "melancia"
-};
-
-const char *SKIN_DISPLAY_NAMES[MAX_SKINS] = {
-    "GELO", "TERRA", "TROVÃO", "VIDENTE", "DIAMANTE", "XADREZ", "CAMUFLADA", "MEL", 
-    "PIXELADA", "LABIRINTO", "MORANGO", "CHOCOLATE", "ARCO-ÍRIS", "DONUT", "PIZZA", 
-    "HAMBÚRGUER", "SORVETE", "SUSHI", "PANDA", "CACHORRO", "COELHO", "RAPOSA", "MELANCIA"
-};
-
-SkinManager ball_skins;
 int LEVEL_LAYOUTS[3][BLOCK_ROWS][BLOCK_COLS] = {
     { 
         {3,3,3,3,3,3,3,3,3,3},
@@ -84,6 +75,46 @@ int LEVEL_LAYOUTS[3][BLOCK_ROWS][BLOCK_COLS] = {
     }
 };
 
+const char *SKIN_FILE_NAMES[MAX_SKINS] = {
+    "gelo", "terra", "trovao", "vidente", "diamante", "xadrez", "camuflada", "mel", 
+    "pixelada", "labirinto", "morango", "chocolate", "arco-iris", "donut", "pizza", 
+    "hamburger", "sorvete", "sushi", "panda", "cachorro", "coelho", "raposa", "melancia"
+};
+
+const char *SKIN_DISPLAY_NAMES[MAX_SKINS] = {
+    "GELO", "TERRA", "TROVÃO", "VIDENTE", "DIAMANTE", "XADREZ", "CAMUFLADA", "MEL", 
+    "PIXELADA", "LABIRINTO", "MORANGO", "CHOCOLATE", "ARCO-ÍRIS", "DONUT", "PIZZA", 
+    "HAMBÚRGUER", "SORVETE", "SUSHI", "PANDA", "CACHORRO", "COELHO", "RAPOSA", "MELANCIA"
+};
+
+SkinManager ball_skins;
+
+FallingParticle particles[NUM_PARTICLES];
+Texture2D background_textures[MAX_SKINS];
+
+
+void InitializeParticles() {
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+        particles[i].position.x = GetRandomValue(0, current_screen_width);
+        particles[i].position.y = GetRandomValue(0, current_screen_height);
+        particles[i].speed = GetRandomValue(PARTICLE_SPEED_MIN * 100, PARTICLE_SPEED_MAX * 100) / 100.0f;
+        particles[i].length = GetRandomValue(PARTICLE_LENGTH_MIN * 10, PARTICLE_LENGTH_MAX_VAL * 10) / 10.0f;
+        particles[i].color = WHITE;
+    }
+}
+
+void UpdateParticles() {
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+        particles[i].position.y += particles[i].speed;
+        if (particles[i].position.y > current_screen_height) {
+            particles[i].position.y = -particles[i].length;
+            particles[i].position.x = GetRandomValue(0, current_screen_width);
+            particles[i].speed = GetRandomValue(PARTICLE_SPEED_MIN * 100, PARTICLE_SPEED_MAX * 100) / 100.0f;
+            particles[i].length = GetRandomValue(PARTICLE_LENGTH_MIN * 10, PARTICLE_LENGTH_MAX_VAL * 10) / 10.0f;
+        }
+    }
+}
+
 void InitializeBlocks(int levelIndex)
 {
     float block_width = (float)current_screen_width / BLOCK_COLS;
@@ -97,7 +128,7 @@ void InitializeBlocks(int levelIndex)
         for (int j = 0; j < BLOCK_COLS; j++)
         {
             game_blocks[i][j].rect = (Rectangle){ j * block_width, top_offset + i * block_height, block_width, block_height };
-            int type = LEVEL_LAYOUTS[levelIndex][i][j];
+            int type = LEVEL_LAYOUTS[levelIndex][i][j]; 
 
             if (type > 0) 
             {
@@ -127,12 +158,14 @@ void InitializeGame()
     player_paddle.rect.y = current_screen_height - player_paddle.rect.height * 2.0f;
     player_paddle.speed = PADDLE_SPEED;
 
+    player_paddle.controls_reversed = false;
+    player_paddle.time_effect_started = 0.0;
+
     game_ball.position = (Vector2){ current_screen_width / 2.0f, player_paddle.rect.y - BALL_RADIUS };
     game_ball.radius = BALL_RADIUS;
     game_ball.velocity = (Vector2){ BALL_INITIAL_SPEED, -BALL_INITIAL_SPEED };
     
     current_score = 0;
- 
     int randomLevel = GetRandomValue(0, 2);
     InitializeBlocks(randomLevel); 
 }
@@ -211,11 +244,15 @@ void ApplyPowerUp(int type)
         {
             float current_speed_x = (game_ball.velocity.x > 0) ? 1.0f : -1.0f;
             float current_speed_y = (game_ball.velocity.y > 0) ? 1.0f : -1.0f;
-            
             game_ball.velocity.x = (BALL_INITIAL_SPEED * 0.6f) * current_speed_x;
             game_ball.velocity.y = (BALL_INITIAL_SPEED * 0.6f) * current_speed_y;
             break;
         }
+        case POWERUP_REVERSE_CONTROLS:
+            player_paddle.controls_reversed = true;
+            player_paddle.time_effect_started = GetTime(); 
+            break;
+
         default: break;
     }
 }
@@ -264,7 +301,7 @@ void CheckBallBlockCollision(Ball *ball)
                         }
 
                         if (GetRandomValue(1, 10) <= 3) {
-                            int power_type = GetRandomValue(1, 3); 
+                            int power_type = GetRandomValue(1, POWERUP_REVERSE_CONTROLS); 
                             AddPowerUp(game_blocks[i][j].rect.x, game_blocks[i][j].rect.y, power_type);
                         }
                     }
@@ -277,8 +314,25 @@ void CheckBallBlockCollision(Ball *ball)
 
 void UpdateGame()
 {
-    if (IsKeyDown(KEY_LEFT)) player_paddle.rect.x -= player_paddle.speed;
-    if (IsKeyDown(KEY_RIGHT)) player_paddle.rect.x += player_paddle.speed;
+    if (player_paddle.controls_reversed)
+    {
+        const float EFFECT_DURATION = 5.0f; 
+        if (GetTime() - player_paddle.time_effect_started >= EFFECT_DURATION)
+        {
+            player_paddle.controls_reversed = false;
+        }
+    }
+
+    if (player_paddle.controls_reversed)
+    {
+        if (IsKeyDown(KEY_LEFT)) player_paddle.rect.x += player_paddle.speed; 
+        if (IsKeyDown(KEY_RIGHT)) player_paddle.rect.x -= player_paddle.speed; 
+    }
+    else 
+    {
+        if (IsKeyDown(KEY_LEFT)) player_paddle.rect.x -= player_paddle.speed;
+        if (IsKeyDown(KEY_RIGHT)) player_paddle.rect.x += player_paddle.speed;
+    }
 
     if (player_paddle.rect.x <= 0) player_paddle.rect.x = 0;
     if (player_paddle.rect.x + player_paddle.rect.width >= current_screen_width) 
@@ -305,8 +359,7 @@ void UpdateGame()
         float hit_point = game_ball.position.x - player_paddle.rect.x;
         float relative_hit = hit_point / player_paddle.rect.width;
         float direction = (relative_hit * 2.0f - 1.0f);
-        
-        float speed = BALL_INITIAL_SPEED * 1.05f; 
+        float speed = (fabsf(game_ball.velocity.x) > fabsf(game_ball.velocity.y)) ? fabsf(game_ball.velocity.x) : fabsf(game_ball.velocity.y);
         
         game_ball.velocity.x = direction * speed;
         game_ball.velocity.y = -speed;
@@ -324,6 +377,7 @@ void UpdateGame()
         if (CheckCollisionRecs(current->rect, player_paddle.rect))
         {
             ApplyPowerUp(current->type);
+            
             if (prev == NULL) powerup_head = current->next;
             else prev->next = current->next;
             PowerUpNode *temp = current;
@@ -341,48 +395,37 @@ void UpdateGame()
             free(temp);
             continue;
         }
+
         prev = current;
         current = current->next;
     }
 }
 
+void DrawParticles() {
+    for (int i = 0; i < NUM_PARTICLES; i++) {
+        DrawLine(particles[i].position.x, particles[i].position.y,
+                 particles[i].position.x, particles[i].position.y + particles[i].length,
+                 particles[i].color);
+    }
+}
+
+
 void DrawSkinSelector()
 {
     float font_size_title = current_screen_height * 0.08f;
     float font_size_text = current_screen_height * 0.04f;
-
-    Texture2D bg = background_textures[ball_skins.current_skin_index];
-    if (bg.id > 0) {
-        DrawTexturePro(bg, 
-                       (Rectangle){0, 0, bg.width, bg.height},
-                       (Rectangle){0, 0, current_screen_width, current_screen_height},
-                       (Vector2){0,0}, 0.0f, WHITE);
-    } else {
-        DrawRectangleGradientV(0, 0, current_screen_width, current_screen_height, DARKBLUE, BLACK);
-    }
     
-    DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.7f));
+    DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.9f));
     
-    DrawText("SELECIONE SUA BOLA", 
-             current_screen_width/2 - MeasureText("SELECIONE SUA BOLA", font_size_title)/2, 
-             current_screen_height/6, 
-             font_size_title, YELLOW);
+    DrawText("SELECIONE SUA BOLA", current_screen_width/2 - MeasureText("SELECIONE SUA BOLA", font_size_title)/2, current_screen_height/6, font_size_title, YELLOW);
              
     const char *skin_name = SKIN_DISPLAY_NAMES[ball_skins.current_skin_index];
-    DrawText(skin_name, 
-             current_screen_width/2 - MeasureText(skin_name, font_size_text * 1.5f)/2, 
-             current_screen_height * 0.28f, 
-             font_size_text * 1.5f, WHITE);
+    DrawText(skin_name, current_screen_width/2 - MeasureText(skin_name, font_size_text * 1.5f)/2, current_screen_height * 0.28f, font_size_text * 1.5f, WHITE);
              
     Texture2D current_texture = ball_skins.textures[ball_skins.current_skin_index];
     
     float preview_size = current_screen_height * 0.20f;
-    Rectangle destRect = { 
-        current_screen_width/2 - preview_size/2, 
-        current_screen_height/2 - preview_size/2, 
-        preview_size, 
-        preview_size 
-    };
+    Rectangle destRect = { current_screen_width/2 - preview_size/2, current_screen_height/2 - preview_size/2, preview_size, preview_size };
     Rectangle sourceRect = { 0.0f, 0.0f, (float)current_texture.width, (float)current_texture.height };
 
     DrawTexturePro(current_texture, sourceRect, destRect, (Vector2){0,0}, 0.0f, WHITE);
@@ -390,10 +433,7 @@ void DrawSkinSelector()
     DrawText("<", current_screen_width/2 - preview_size/2 - 50, current_screen_height/2 - 20, font_size_title, LIME);
     DrawText(">", current_screen_width/2 + preview_size/2 + 20, current_screen_height/2 - 20, font_size_title, LIME);
     
-    DrawText("Use SETAS ESQUERDA/DIREITA | ENTER para Continuar", 
-             current_screen_width/2 - MeasureText("Use SETAS ESQUERDA/DIREITA | ENTER para Continuar", font_size_text)/2, 
-             current_screen_height * 0.85f, 
-             font_size_text, RAYWHITE);
+    DrawText("Use SETAS ESQUERDA/DIREITA | ENTER para Continuar", current_screen_width/2 - MeasureText("Use SETAS ESQUERDA/DIREITA | ENTER para Continuar", font_size_text)/2, current_screen_height * 0.85f, font_size_text, RAYWHITE);
 
     if (IsKeyPressed(KEY_RIGHT)) ball_skins.current_skin_index = (ball_skins.current_skin_index + 1) % MAX_SKINS;
     if (IsKeyPressed(KEY_LEFT)) ball_skins.current_skin_index = (ball_skins.current_skin_index - 1 + MAX_SKINS) % MAX_SKINS;
@@ -403,21 +443,20 @@ void DrawSkinSelector()
 
 void DrawGame()
 {
+    if (game_state != 1) UpdateParticles();
+    
     BeginDrawing();
     
-        ClearBackground(DARKGRAY);
+        ClearBackground(BLACK);
+        if (game_state != 1) DrawParticles();
         
         Texture2D bg = background_textures[ball_skins.current_skin_index];
-        if (bg.id > 0) {
-            DrawTexturePro(bg, 
-                           (Rectangle){0, 0, bg.width, bg.height},
-                           (Rectangle){0, 0, current_screen_width, current_screen_height},
-                           (Vector2){0,0}, 0.0f, WHITE);
-        } else {
-            DrawRectangleGradientV(0, 0, current_screen_width, current_screen_height, DARKBLUE, BLACK);
+        if (bg.id > 0 && game_state == 1) {
+            DrawTexturePro(bg, (Rectangle){0, 0, (float)bg.width, (float)bg.height}, (Rectangle){0, 0, (float)current_screen_width, (float)current_screen_height}, (Vector2){0,0}, 0.0f, Fade(WHITE, 0.4f));
+        } else if (game_state == 1) {
+             DrawRectangleGradientV(0, 0, current_screen_width, current_screen_height, DARKBLUE, BLACK);
+             DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.3f));
         }
-        
-        DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.3f));
         
         for (int i = 0; i < BLOCK_ROWS; i++)
         {
@@ -426,32 +465,28 @@ void DrawGame()
                 if (game_blocks[i][j].is_active)
                 {
                     Rectangle rect = game_blocks[i][j].rect;
+                    Color color = game_blocks[i][j].color;
                     
-                    DrawRectangleRec(rect, game_blocks[i][j].color);
-                    
+                    DrawRectangleRec(rect, color);
                     DrawRectangle(rect.x, rect.y, rect.width, 4, Fade(WHITE, 0.5f));
                     DrawRectangle(rect.x, rect.y, 4, rect.height, Fade(WHITE, 0.5f));
-
                     DrawRectangle(rect.x, rect.y + rect.height - 4, rect.width, 4, Fade(BLACK, 0.4f));
                     DrawRectangle(rect.x + rect.width - 4, rect.y, 4, rect.height, Fade(BLACK, 0.4f));
-
                     DrawRectangleLinesEx(rect, 1, BLACK); 
                 }
             }
         }
 
-        DrawRectangleRec(player_paddle.rect, BLUE);
+        Color paddle_color = BLUE;
+        if (player_paddle.controls_reversed) { paddle_color = PURPLE; }
+        
+        DrawRectangleRec(player_paddle.rect, paddle_color);
         DrawRectangleLinesEx(player_paddle.rect, 2, SKYBLUE);
         
         if (game_state != 4) 
         {
             Texture2D current_texture = ball_skins.textures[ball_skins.current_skin_index];
-            Rectangle destRect = { 
-                game_ball.position.x - game_ball.radius, 
-                game_ball.position.y - game_ball.radius, 
-                game_ball.radius * 2, 
-                game_ball.radius * 2 
-            };
+            Rectangle destRect = { game_ball.position.x - game_ball.radius, game_ball.position.y - game_ball.radius, game_ball.radius * 2, game_ball.radius * 2 };
             Rectangle sourceRect = { 0.0f, 0.0f, (float)current_texture.width, (float)current_texture.height };
             DrawTexturePro(current_texture, sourceRect, destRect, (Vector2){0,0}, 0.0f, WHITE);
         }
@@ -459,8 +494,7 @@ void DrawGame()
         PowerUpNode *current = powerup_head;
         while (current != NULL)
         {
-            DrawRectangleRec(current->rect, (current->type == 1) ? MAGENTA : ((current->type == 2) ? LIME : YELLOW));
-            DrawRectangleLinesEx(current->rect, 1, RAYWHITE);
+            DrawRectangleRec(current->rect, (current->type == 1) ? MAGENTA : ((current->type == 2) ? LIME : ((current->type == 3) ? YELLOW : PURPLE)));
             current = current->next;
         }
         
@@ -474,6 +508,7 @@ void DrawGame()
 
             DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.8f));
             DrawText("GAME OVER!", current_screen_width/2 - MeasureText("GAME OVER!", font_size_large)/2, current_screen_height/4, font_size_large, RED);
+            
             DrawText("CONTINUAR (ENTER)", current_screen_width/2 - MeasureText("CONTINUAR (ENTER)", font_size_options)/2, current_screen_height/2 - font_size_options, font_size_options, WHITE);
             DrawText("VOLTAR AO MENU (ESPACO)", current_screen_width/2 - MeasureText("VOLTAR AO MENU (ESPACO)", font_size_options)/2, current_screen_height/2 + font_size_options, font_size_options, WHITE);
             
@@ -490,10 +525,10 @@ void DrawGame()
             else if (IsKeyPressed(KEY_SPACE)) { ClearPowerUps(); game_state = 4; }
         }
         
-        else if (game_state == 3)
+        else if (game_state == 3) 
         {
             float font_size_title = current_screen_height * 0.08f;
-            float font_size_text = current_screen_height * 0.04f;
+            float font_size_small = current_screen_height * 0.04f;
             char instruction_text[100];
             
             DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.9f));
@@ -501,20 +536,19 @@ void DrawGame()
             if (!is_typing) {
                 sprintf(instruction_text, "JOGAR COMO: %s", player_name);
                 DrawText(instruction_text, current_screen_width/2 - MeasureText(instruction_text, font_size_title)/2, current_screen_height/3, font_size_title, GREEN);
-                DrawText("ENTER para Manter | ESPACO para Mudar Nome", current_screen_width/2 - MeasureText("ENTER para Manter | ESPACO para Mudar Nome", font_size_text)/2, current_screen_height/2, font_size_text, WHITE);
+                DrawText("ENTER para Manter | ESPACO para Mudar Nome", current_screen_width/2 - MeasureText("ENTER para Manter | ESPACO para Mudar Nome", font_size_small)/2, current_screen_height/2, font_size_small, WHITE);
 
                 if (IsKeyPressed(KEY_ENTER)) { InitializeGame(); game_state = 1; } 
                 else if (IsKeyPressed(KEY_SPACE)) { is_typing = true; letter_count = 0; player_name[0] = '\0'; }
 
             } else {
-                DrawText("INSIRA SEU NOME (MAX 9 LETRAS):", current_screen_width/2 - MeasureText("INSIRA SEU NOME (MAX 9 LETRAS):", font_size_text)/2, current_screen_height/3, font_size_text, WHITE);
-                
+                DrawText("INSIRA SEU NOME (MAX 9 LETRAS):", current_screen_width/2 - MeasureText("INSIRA SEU NOME (MAX 9 LETRAS):", font_size_small)/2, current_screen_height/3, font_size_small, WHITE);
                 char display_name[MAX_NAME_LENGTH + 2];
                 strcpy(display_name, player_name);
                 if ((GetTime() / 0.5f) < (int)(GetTime() / 0.5f)) display_name[letter_count] = '_';
                 display_name[letter_count + 1] = '\0';
                 DrawText(display_name, current_screen_width/2 - MeasureText(display_name, font_size_title)/2, current_screen_height/2, font_size_title, RAYWHITE);
-                DrawText("ENTER para Confirmar", current_screen_width/2 - MeasureText("ENTER para Confirmar", font_size_text)/2, current_screen_height/2 + font_size_title, font_size_text, YELLOW);
+                DrawText("ENTER para Confirmar", current_screen_width/2 - MeasureText("ENTER para Confirmar", font_size_small)/2, current_screen_height/2 + font_size_title, font_size_small, YELLOW);
 
                 int key = GetCharPressed();
                 while (key > 0) {
@@ -523,19 +557,20 @@ void DrawGame()
                     }
                     key = GetCharPressed();
                 }
+
                 if (IsKeyPressed(KEY_BACKSPACE)) {
                     letter_count--; if (letter_count < 0) letter_count = 0; player_name[letter_count] = '\0';
                 }
+
                 if (IsKeyPressed(KEY_ENTER)) {
-                    if (letter_count == 0) strcpy(player_name, "PLAYER");
+                    if (letter_count == 0) strcpy(player_name, "PLAYER"); 
                     is_typing = false; InitializeGame(); game_state = 1;
                 }
             }
         }
-        
         else if (game_state == 4) 
         {
-            DrawSkinSelector();
+            DrawSkinSelector(); 
         }
 
     EndDrawing();
@@ -557,6 +592,7 @@ int main(void)
 
     LoadScores();
     InitializeGame();
+    InitializeParticles();
 
     for (int i = 0; i < MAX_SKINS; i++)
     {
@@ -573,15 +609,15 @@ int main(void)
     while (!WindowShouldClose())
     {
         if (game_state == 1) UpdateGame();
+        else if (game_state == 2 || game_state == 3 || game_state == 4) {} 
+        
         DrawGame();
     }
 
-    for (int i = 0; i < MAX_SKINS; i++)
-    {
+    for (int i = 0; i < MAX_SKINS; i++) {
         UnloadTexture(ball_skins.textures[i]);
         UnloadTexture(background_textures[i]);
     }
     
-    CloseWindow();
     return 0;
 }
