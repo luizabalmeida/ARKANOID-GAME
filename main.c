@@ -11,16 +11,13 @@
 #define BLOCK_ROWS 8
 #define BLOCK_COLS 10
 
-#define BALL_RADIUS 25.0f
+#define BALL_RADIUS 15.0f
 #define BALL_INITIAL_SPEED 10.0f
 #define PADDLE_SPEED 15.0f
 
 #define MAX_HIGH_SCORES 5
 #define MAX_NAME_LENGTH 9
 #define MAX_SKINS 23
-
-#define POWERUP_REVERSE_CONTROLS 4
-#define POWERUP_GUN_PADDLE 5
 
 const float PARTICLE_SPEED_MIN = 1.0f;
 const float PARTICLE_SPEED_MAX = 3.0f;
@@ -46,6 +43,23 @@ char player_name[MAX_NAME_LENGTH + 1] = "PLAYER";
 int letter_count = 6;
 bool is_typing = false;
 
+Texture2D background_textures[MAX_SKINS];
+Texture2D powerup_textures[6]; 
+SkinManager ball_skins;
+FallingParticle particles[NUM_PARTICLES];
+
+const char *SKIN_FILE_NAMES[MAX_SKINS] = {
+    "gelo", "terra", "trovao", "vidente", "diamante", "xadrez", "camuflada", "mel", 
+    "pixelada", "labirinto", "morango", "chocolate", "arco-iris", "donut", "pizza", 
+    "hamburguer", "sorvete", "sushi", "panda", "cachorro", "coelho", "raposa", "melancia"
+};
+
+const char *SKIN_DISPLAY_NAMES[MAX_SKINS] = {
+    "GELO", "TERRA", "TROVÃO", "VIDENTE", "DIAMANTE", "XADREZ", "CAMUFLADA", "MEL", 
+    "PIXELADA", "LABIRINTO", "MORANGO", "CHOCOLATE", "ARCO-ÍRIS", "DONUT", "PIZZA", 
+    "HAMBÚRGUER", "SORVETE", "SUSHI", "PANDA", "CACHORRO", "COELHO", "RAPOSA", "MELANCIA"
+};
+
 int LEVEL_LAYOUTS[3][BLOCK_ROWS][BLOCK_COLS] = {
     { 
         {3,3,3,3,3,3,3,3,3,3},
@@ -67,7 +81,7 @@ int LEVEL_LAYOUTS[3][BLOCK_ROWS][BLOCK_COLS] = {
         {3,3,2,2,1,1,2,2,3,3},
         {0,0,0,0,0,0,0,0,0,0}
     },
-    {
+    { 
         {3,3,3,3,3,3,3,3,3,3},
         {3,0,0,0,0,0,0,0,0,3},
         {3,0,2,2,2,2,2,2,0,3},
@@ -78,22 +92,6 @@ int LEVEL_LAYOUTS[3][BLOCK_ROWS][BLOCK_COLS] = {
         {3,3,3,3,3,3,3,3,3,3}
     }
 };
-
-const char *SKIN_FILE_NAMES[MAX_SKINS] = {
-    "gelo", "terra", "trovao", "vidente", "diamante", "xadrez", "camuflada", "mel", 
-    "pixelada", "labirinto", "morango", "chocolate", "arco_iris", "donut", "pizza", 
-    "hamburger", "sorvete", "sushi", "panda", "cachorro", "coelho", "raposa", "melancia"
-};
-
-const char *SKIN_DISPLAY_NAMES[MAX_SKINS] = {
-    "GELO", "TERRA", "TROVÃO", "VIDENTE", "DIAMANTE", "XADREZ", "CAMUFLADA", "MEL", 
-    "PIXELADA", "LABIRINTO", "MORANGO", "CHOCOLATE", "ARCO-ÍRIS", "DONUT", "PIZZA", 
-    "HAMBÚRGUER", "SORVETE", "SUSHI", "PANDA", "CACHORRO", "COELHO", "RAPOSA", "MELANCIA"
-};
-
-SkinManager ball_skins;
-FallingParticle particles[NUM_PARTICLES];
-Texture2D background_textures[MAX_SKINS];
 
 void InitializeParticles() {
     for (int i = 0; i < NUM_PARTICLES; i++) {
@@ -205,7 +203,11 @@ void InitializeGame()
     player_paddle.time_effect_started = 0.0;
     
     player_paddle.has_gun = false;
+    player_paddle.time_gun_started = 0.0;
     player_paddle.time_last_shot = 0.0;
+
+    player_paddle.size_changed = false;
+    player_paddle.time_size_changed = 0.0;
 
     Bullet *current = bullet_head;
     while (current != NULL) {
@@ -268,7 +270,8 @@ void AddPowerUp(float x, float y, int type)
     PowerUpNode *newNode = (PowerUpNode *)malloc(sizeof(PowerUpNode));
     if (newNode == NULL) return;
     
-    newNode->rect = (Rectangle){ x + 10, y + 5, current_screen_width * 0.025f, current_screen_height * 0.02f };
+    float size = current_screen_width * 0.04f; 
+    newNode->rect = (Rectangle){ x + 10, y + 5, size, size };
     newNode->type = type;
     newNode->speed = 2.0f;
     newNode->next = powerup_head;
@@ -278,13 +281,17 @@ void AddPowerUp(float x, float y, int type)
 void ApplyPowerUp(int type)
 {
     switch (type) {
-        case 1:
+        case 1: 
             player_paddle.rect.width = current_screen_width * 0.20f;
+            player_paddle.size_changed = true;
+            player_paddle.time_size_changed = GetTime();
             break;
-        case 2:
+        case 2: 
             player_paddle.rect.width = current_screen_width * 0.08f;
+            player_paddle.size_changed = true;
+            player_paddle.time_size_changed = GetTime();
             break;
-        case 3:
+        case 3: 
         {
             float current_speed_x = (game_ball.velocity.x > 0) ? 1.0f : -1.0f;
             float current_speed_y = (game_ball.velocity.y > 0) ? 1.0f : -1.0f;
@@ -292,13 +299,14 @@ void ApplyPowerUp(int type)
             game_ball.velocity.y = (BALL_INITIAL_SPEED * 0.6f) * current_speed_y;
             break;
         }
-        case POWERUP_REVERSE_CONTROLS:
+        case 4: 
             player_paddle.controls_reversed = true;
             player_paddle.time_effect_started = GetTime(); 
             break;
             
-        case POWERUP_GUN_PADDLE:
+        case 5: 
             player_paddle.has_gun = true;
+            player_paddle.time_gun_started = GetTime();
             break;
 
         default: break;
@@ -349,7 +357,7 @@ void CheckBallBlockCollision(Ball *ball)
                         }
 
                         if (GetRandomValue(1, 10) <= 4) {
-                            int power_type = GetRandomValue(1, POWERUP_GUN_PADDLE);
+                            int power_type = GetRandomValue(1, 5);
                             AddPowerUp(game_blocks[i][j].rect.x, game_blocks[i][j].rect.y, power_type);
                         }
                     }
@@ -362,12 +370,31 @@ void CheckBallBlockCollision(Ball *ball)
 
 void UpdateGame()
 {
+    const float EFFECT_DURATION = 10.0f; 
+    const float REVERSE_DURATION = 5.0f; 
+
     if (player_paddle.controls_reversed)
     {
-        const float EFFECT_DURATION = 5.0f; 
-        if (GetTime() - player_paddle.time_effect_started >= EFFECT_DURATION)
+        if (GetTime() - player_paddle.time_effect_started >= REVERSE_DURATION)
         {
             player_paddle.controls_reversed = false;
+        }
+    }
+
+    if (player_paddle.has_gun)
+    {
+        if (GetTime() - player_paddle.time_gun_started >= EFFECT_DURATION)
+        {
+            player_paddle.has_gun = false;
+        }
+    }
+
+    if (player_paddle.size_changed)
+    {
+        if (GetTime() - player_paddle.time_size_changed >= EFFECT_DURATION)
+        {
+            player_paddle.rect.width = current_screen_width * 0.125f;
+            player_paddle.size_changed = false;
         }
     }
 
@@ -403,6 +430,7 @@ void UpdateGame()
     {
         game_state = 2;
         SaveScores(current_score);
+        ClearPowerUps();
     }
     
     if (CheckCollisionCircleRec(game_ball.position, game_ball.radius, player_paddle.rect) && game_ball.velocity.y > 0)
@@ -413,6 +441,8 @@ void UpdateGame()
         float direction = (relative_hit * 2.0f - 1.0f);
         float speed = (fabsf(game_ball.velocity.x) > fabsf(game_ball.velocity.y)) ? fabsf(game_ball.velocity.x) : fabsf(game_ball.velocity.y);
         
+        if (speed < BALL_INITIAL_SPEED) speed = BALL_INITIAL_SPEED * 1.05f;
+
         game_ball.velocity.x = direction * speed;
         game_ball.velocity.y = -speed;
     }
@@ -502,6 +532,13 @@ void DrawSkinSelector()
     float font_size_title = current_screen_height * 0.08f;
     float font_size_text = current_screen_height * 0.04f;
     
+    Texture2D bg = background_textures[ball_skins.current_skin_index];
+    if (bg.id > 0) {
+        DrawTexturePro(bg, (Rectangle){0, 0, bg.width, bg.height}, (Rectangle){0, 0, current_screen_width, current_screen_height}, (Vector2){0,0}, 0.0f, WHITE);
+    } else {
+        DrawRectangleGradientV(0, 0, current_screen_width, current_screen_height, DARKBLUE, BLACK);
+    }
+    
     DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.9f));
     
     DrawText("SELECIONE SUA BOLA", current_screen_width/2 - MeasureText("SELECIONE SUA BOLA", font_size_title)/2, current_screen_height/6, font_size_title, YELLOW);
@@ -588,17 +625,36 @@ void DrawGame()
         PowerUpNode *current = powerup_head;
         while (current != NULL)
         {
-            Color pColor = YELLOW;
-            if (current->type == 1) pColor = MAGENTA;
-            else if (current->type == 2) pColor = LIME;
-            else if (current->type == 3) pColor = YELLOW;
-            else if (current->type == 4) pColor = PURPLE;
-            else if (current->type == 5) pColor = RED;
+            if (powerup_textures[current->type].id > 0) 
+            {
+                Texture2D tex = powerup_textures[current->type];
+                Rectangle source = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
+                DrawTexturePro(tex, source, current->rect, (Vector2){0,0}, 0.0f, WHITE);
+            }
+            else 
+            {
+                Color pColor = YELLOW;
+                if (current->type == 4) pColor = PURPLE;
+                else if (current->type == 5) pColor = RED;
 
-            DrawRectangleRec(current->rect, pColor);
+                DrawRectangleRec(current->rect, pColor);
+                DrawRectangleLinesEx(current->rect, 1, RAYWHITE);
+            }
             current = current->next;
         }
+        DrawRectangleRec(player_paddle.rect, paddle_color);
+        DrawRectangleLinesEx(player_paddle.rect, 2, SKYBLUE);
         
+        if (player_paddle.has_gun) {
+            const char *text = "PRESS SPACE";
+            int textWidth = MeasureText(text, 20);
+            if ((int)(GetTime() * 5) % 2 == 0) { 
+                DrawText(text, 
+                         player_paddle.rect.x + player_paddle.rect.width/2 - textWidth/2, 
+                         player_paddle.rect.y - 25, 
+                         20, YELLOW);
+            }
+        }        
         DrawText(TextFormat("SCORE: %d", current_score), 10, 10, current_screen_height * 0.04f, WHITE); 
 
         if (game_state == 2)
@@ -658,11 +714,9 @@ void DrawGame()
                     }
                     key = GetCharPressed();
                 }
-
                 if (IsKeyPressed(KEY_BACKSPACE)) {
                     letter_count--; if (letter_count < 0) letter_count = 0; player_name[letter_count] = '\0';
                 }
-
                 if (IsKeyPressed(KEY_ENTER)) {
                     if (letter_count == 0) strcpy(player_name, "PLAYER"); 
                     is_typing = false; InitializeGame(); game_state = 1;
@@ -706,6 +760,12 @@ int main(void)
         background_textures[i] = LoadTexture(bgPath);
     }
     ball_skins.current_skin_index = 0;
+
+    powerup_textures[1] = LoadTexture("img/powerup_aumentar.png");
+    powerup_textures[2] = LoadTexture("img/powerup_diminuir.png");
+    powerup_textures[3] = LoadTexture("img/powerup_lento.png");
+    powerup_textures[4] = LoadTexture("img/powerup_inverter.png");
+    powerup_textures[5] = LoadTexture("img/powerup_arma.png");
     
     while (!WindowShouldClose())
     {
@@ -719,6 +779,11 @@ int main(void)
         UnloadTexture(ball_skins.textures[i]);
         UnloadTexture(background_textures[i]);
     }
+    UnloadTexture(powerup_textures[1]);
+    UnloadTexture(powerup_textures[2]);
+    UnloadTexture(powerup_textures[3]);
+    UnloadTexture(powerup_textures[4]);
+    UnloadTexture(powerup_textures[5]);
     
     CloseWindow();
     return 0;

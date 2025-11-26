@@ -1,9 +1,14 @@
+
+#ifndef GAME_STRUCTS_H
+#define GAME_STRUCTS_H
+
 #include "raylib.h"
 
 #define MAX_SCORE_NAME 20
 #define MAX_SKINS 23 
 #define NUM_PARTICLES 100 
 #define PARTICLE_LENGTH_MAX 15
+
 #define POWERUP_REVERSE_CONTROLS 4 
 #define POWERUP_GUN_PADDLE 5
 
@@ -24,10 +29,16 @@ typedef struct {
 typedef struct {
     Rectangle rect;
     float speed;
+    
     bool controls_reversed; 
     double time_effect_started; 
+
     bool has_gun;
+    double time_gun_started;
     double time_last_shot;
+
+    bool size_changed;        
+    double time_size_changed; 
 } Paddle;
 
 typedef struct PowerUp {
@@ -65,3 +76,5 @@ extern PowerUpNode *powerup_head;
 extern SkinManager ball_skins;
 extern FallingParticle particles[NUM_PARTICLES];
 extern Bullet *bullet_head;
+
+#endif
