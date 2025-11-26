@@ -812,7 +812,7 @@ int main(void)
     powerup_textures[3] = LoadTexture("img/powerup_lento.png");
     powerup_textures[4] = LoadTexture("img/powerup_inverter.png");
     powerup_textures[5] = LoadTexture("img/powerup_arma.png");
-    powerup_textures[6] = LoadTexture("img/powerup_multibola.png");
+    powerup_textures[6] = LoadTexture("img/powerup_multp.png");
     
     while (!WindowShouldClose())
     {
