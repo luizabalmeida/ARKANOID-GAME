@@ -7,6 +7,7 @@
 #define MAX_SKINS 23 
 #define NUM_PARTICLES 100 
 #define PARTICLE_LENGTH_MAX 15
+#define TRAIL_LENGTH 10
 
 #define POWERUP_REVERSE_CONTROLS 4 
 #define POWERUP_GUN_PADDLE 5
@@ -24,6 +25,7 @@ typedef struct BallNode {
     Vector2 position;
     Vector2 velocity;
     float radius;
+    Vector2 previous_positions[TRAIL_LENGTH];
     struct BallNode *next;
 } BallNode;
 

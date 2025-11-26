@@ -54,7 +54,7 @@ int letter_count = 6;
 bool is_typing = false;
 
 Texture2D background_textures[MAX_SKINS];
-Texture2D powerup_textures[7]; // Aumentado para garantir espaço
+Texture2D powerup_textures[7];
 SkinManager ball_skins;
 FallingParticle particles[NUM_PARTICLES];
 
@@ -140,6 +140,11 @@ void SpawnBall(Vector2 position, Vector2 velocity) {
     newBall->position = position;
     newBall->velocity = velocity;
     newBall->radius = BALL_RADIUS;
+
+    for (int i = 0; i < TRAIL_LENGTH; i++) {
+        newBall->previous_positions[i] = position;
+    }
+    
     newBall->next = ball_head;
     ball_head = newBall;
 }
@@ -297,7 +302,7 @@ void AddPowerUp(float x, float y, int type)
     PowerUpNode *newNode = (PowerUpNode *)malloc(sizeof(PowerUpNode));
     if (newNode == NULL) return;
     
-    newNode->rect = (Rectangle){ x + 10, y + 5, current_screen_width * 0.025f, current_screen_height * 0.02f };
+    newNode->rect = (Rectangle){ x + 10, y + 5, current_screen_width * 0.04f, current_screen_width * 0.04f };
     newNode->type = type;
     newNode->speed = 2.0f;
     newNode->next = powerup_head;
@@ -337,7 +342,7 @@ void ApplyPowerUp(int type)
             if (ball_head != NULL) {
                 Vector2 basePos = ball_head->position;
                 Vector2 baseVel = ball_head->velocity;
-                SpawnBall(basePos, (Vector2){ -baseVel.x, baseVel.y }); 
+                SpawnBall(basePos, (Vector2){ -baseVel.x, baseVel.y });
             }
             break;
         }
@@ -435,6 +440,11 @@ void UpdateGame()
 
     while (current_ball != NULL)
     {
+        for (int i = TRAIL_LENGTH - 1; i > 0; i--) {
+            current_ball->previous_positions[i] = current_ball->previous_positions[i - 1];
+        }
+        current_ball->previous_positions[0] = current_ball->position;
+
         current_ball->position.x += current_ball->velocity.x;
         current_ball->position.y += current_ball->velocity.y;
 
@@ -634,6 +644,23 @@ void DrawGame()
             Texture2D current_texture = ball_skins.textures[ball_skins.current_skin_index];
             BallNode *ball = ball_head;
             while (ball != NULL) {
+                
+                for (int i = 0; i < TRAIL_LENGTH; i++) {
+                    float factor = 1.0f - ((float)i / TRAIL_LENGTH); 
+                    float trailRadius = ball->radius * (factor * 0.8f); 
+                    Color trailColor = Fade(WHITE, factor * 0.4f); 
+
+                    Rectangle destRectTrail = { 
+                        ball->previous_positions[i].x - trailRadius, 
+                        ball->previous_positions[i].y - trailRadius, 
+                        trailRadius * 2, 
+                        trailRadius * 2 
+                    };
+                    
+                    Rectangle sourceRectTrail = { 0.0f, 0.0f, (float)current_texture.width, (float)current_texture.height };
+                    DrawTexturePro(current_texture, sourceRectTrail, destRectTrail, (Vector2){0,0}, 0.0f, trailColor);
+                }
+
                 Rectangle destRect = { ball->position.x - ball->radius, ball->position.y - ball->radius, ball->radius * 2, ball->radius * 2 };
                 Rectangle sourceRect = { 0.0f, 0.0f, (float)current_texture.width, (float)current_texture.height };
                 DrawTexturePro(current_texture, sourceRect, destRect, (Vector2){0,0}, 0.0f, WHITE);
@@ -689,8 +716,14 @@ void DrawGame()
                 DrawText(text_buffer, current_screen_width/2 - MeasureText(text_buffer, font_size_small)/2, ranking_y_start + font_size_small + i * (font_size_small * 1.2f), font_size_small, WHITE);
             }
             
-            if (IsKeyPressed(KEY_ENTER)) { InitializeGame(); game_state = 1; }
-            else if (IsKeyPressed(KEY_SPACE)) { ClearPowerUps(); game_state = 4; }
+            if (IsKeyPressed(KEY_ENTER)) { 
+                InitializeGame(); 
+                game_state = 1; 
+            }
+            else if (IsKeyPressed(KEY_SPACE)) { 
+                ClearPowerUps(); 
+                game_state = 4; 
+            }
         }
         
         else if (game_state == 3) 
