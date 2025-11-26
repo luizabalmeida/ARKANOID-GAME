@@ -1,4 +1,3 @@
-
 #ifndef GAME_STRUCTS_H
 #define GAME_STRUCTS_H
 
@@ -11,6 +10,7 @@
 
 #define POWERUP_REVERSE_CONTROLS 4 
 #define POWERUP_GUN_PADDLE 5
+#define POWERUP_MULTI_BALL 6
 
 typedef struct {
     Rectangle rect;
@@ -20,11 +20,12 @@ typedef struct {
     int life; 
 } Block;
 
-typedef struct {
+typedef struct BallNode {
     Vector2 position;
     Vector2 velocity;
     float radius;
-} Ball;
+    struct BallNode *next;
+} BallNode;
 
 typedef struct {
     Rectangle rect;
@@ -76,5 +77,6 @@ extern PowerUpNode *powerup_head;
 extern SkinManager ball_skins;
 extern FallingParticle particles[NUM_PARTICLES];
 extern Bullet *bullet_head;
+extern BallNode *ball_head;
 
 #endif

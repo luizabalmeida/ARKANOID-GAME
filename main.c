@@ -11,13 +11,23 @@
 #define BLOCK_ROWS 8
 #define BLOCK_COLS 10
 
-#define BALL_RADIUS 15.0f
+#define BALL_RADIUS 25.0f
 #define BALL_INITIAL_SPEED 10.0f
 #define PADDLE_SPEED 15.0f
 
 #define MAX_HIGH_SCORES 5
 #define MAX_NAME_LENGTH 9
 #define MAX_SKINS 23
+
+#ifndef POWERUP_REVERSE_CONTROLS
+#define POWERUP_REVERSE_CONTROLS 4
+#endif
+#ifndef POWERUP_GUN_PADDLE
+#define POWERUP_GUN_PADDLE 5
+#endif
+#ifndef POWERUP_MULTI_BALL
+#define POWERUP_MULTI_BALL 6
+#endif
 
 const float PARTICLE_SPEED_MIN = 1.0f;
 const float PARTICLE_SPEED_MAX = 3.0f;
@@ -29,7 +39,7 @@ int current_screen_height = 450;
 
 Block game_blocks[BLOCK_ROWS][BLOCK_COLS];
 Paddle player_paddle;
-Ball game_ball;
+BallNode *ball_head = NULL;
 PowerUpNode *powerup_head = NULL;
 Bullet *bullet_head = NULL;
 
@@ -44,14 +54,14 @@ int letter_count = 6;
 bool is_typing = false;
 
 Texture2D background_textures[MAX_SKINS];
-Texture2D powerup_textures[6]; 
+Texture2D powerup_textures[7]; // Aumentado para garantir espaço
 SkinManager ball_skins;
 FallingParticle particles[NUM_PARTICLES];
 
 const char *SKIN_FILE_NAMES[MAX_SKINS] = {
     "gelo", "terra", "trovao", "vidente", "diamante", "xadrez", "camuflada", "mel", 
-    "pixelada", "labirinto", "morango", "chocolate", "arco-iris", "donut", "pizza", 
-    "hamburguer", "sorvete", "sushi", "panda", "cachorro", "coelho", "raposa", "melancia"
+    "pixelada", "labirinto", "morango", "chocolate", "arco_iris", "donut", "pizza", 
+    "hamburger", "sorvete", "sushi", "panda", "cachorro", "coelho", "raposa", "melancia"
 };
 
 const char *SKIN_DISPLAY_NAMES[MAX_SKINS] = {
@@ -81,7 +91,7 @@ int LEVEL_LAYOUTS[3][BLOCK_ROWS][BLOCK_COLS] = {
         {3,3,2,2,1,1,2,2,3,3},
         {0,0,0,0,0,0,0,0,0,0}
     },
-    { 
+    {
         {3,3,3,3,3,3,3,3,3,3},
         {3,0,0,0,0,0,0,0,0,3},
         {3,0,2,2,2,2,2,2,0,3},
@@ -123,6 +133,27 @@ void DrawParticles() {
     }
 }
 
+void SpawnBall(Vector2 position, Vector2 velocity) {
+    BallNode *newBall = (BallNode *)malloc(sizeof(BallNode));
+    if (newBall == NULL) return;
+    
+    newBall->position = position;
+    newBall->velocity = velocity;
+    newBall->radius = BALL_RADIUS;
+    newBall->next = ball_head;
+    ball_head = newBall;
+}
+
+void ClearBalls() {
+    BallNode *current = ball_head;
+    while (current != NULL) {
+        BallNode *next = current->next;
+        free(current);
+        current = next;
+    }
+    ball_head = NULL;
+}
+
 void InitializeBlocks(int levelIndex)
 {
     float block_width = (float)current_screen_width / BLOCK_COLS;
@@ -136,7 +167,7 @@ void InitializeBlocks(int levelIndex)
         for (int j = 0; j < BLOCK_COLS; j++)
         {
             game_blocks[i][j].rect = (Rectangle){ j * block_width, top_offset + i * block_height, block_width, block_height };
-            int type = LEVEL_LAYOUTS[levelIndex][i][j]; 
+            int type = LEVEL_LAYOUTS[levelIndex][i][j];
 
             if (type > 0) 
             {
@@ -194,7 +225,6 @@ void InitializeGame()
 {
     player_paddle.rect.width = current_screen_width * 0.125f;
     player_paddle.rect.height = current_screen_height * 0.035f;
-    
     player_paddle.rect.x = (current_screen_width / 2) - (player_paddle.rect.width / 2);
     player_paddle.rect.y = current_screen_height - player_paddle.rect.height * 2.0f;
     player_paddle.speed = PADDLE_SPEED;
@@ -203,11 +233,7 @@ void InitializeGame()
     player_paddle.time_effect_started = 0.0;
     
     player_paddle.has_gun = false;
-    player_paddle.time_gun_started = 0.0;
     player_paddle.time_last_shot = 0.0;
-
-    player_paddle.size_changed = false;
-    player_paddle.time_size_changed = 0.0;
 
     Bullet *current = bullet_head;
     while (current != NULL) {
@@ -218,10 +244,11 @@ void InitializeGame()
     bullet_head = NULL;
     
     ClearPowerUps();
+    ClearBalls(); 
 
-    game_ball.position = (Vector2){ current_screen_width / 2.0f, player_paddle.rect.y - BALL_RADIUS };
-    game_ball.radius = BALL_RADIUS;
-    game_ball.velocity = (Vector2){ BALL_INITIAL_SPEED, -BALL_INITIAL_SPEED };
+    Vector2 startPos = { current_screen_width / 2.0f, player_paddle.rect.y - BALL_RADIUS };
+    Vector2 startVel = { BALL_INITIAL_SPEED, -BALL_INITIAL_SPEED };
+    SpawnBall(startPos, startVel);
     
     current_score = 0;
     int randomLevel = GetRandomValue(0, 2);
@@ -270,8 +297,7 @@ void AddPowerUp(float x, float y, int type)
     PowerUpNode *newNode = (PowerUpNode *)malloc(sizeof(PowerUpNode));
     if (newNode == NULL) return;
     
-    float size = current_screen_width * 0.04f; 
-    newNode->rect = (Rectangle){ x + 10, y + 5, size, size };
+    newNode->rect = (Rectangle){ x + 10, y + 5, current_screen_width * 0.025f, current_screen_height * 0.02f };
     newNode->type = type;
     newNode->speed = 2.0f;
     newNode->next = powerup_head;
@@ -283,37 +309,44 @@ void ApplyPowerUp(int type)
     switch (type) {
         case 1: 
             player_paddle.rect.width = current_screen_width * 0.20f;
-            player_paddle.size_changed = true;
-            player_paddle.time_size_changed = GetTime();
             break;
         case 2: 
             player_paddle.rect.width = current_screen_width * 0.08f;
-            player_paddle.size_changed = true;
-            player_paddle.time_size_changed = GetTime();
             break;
-        case 3: 
+        case 3:
         {
-            float current_speed_x = (game_ball.velocity.x > 0) ? 1.0f : -1.0f;
-            float current_speed_y = (game_ball.velocity.y > 0) ? 1.0f : -1.0f;
-            game_ball.velocity.x = (BALL_INITIAL_SPEED * 0.6f) * current_speed_x;
-            game_ball.velocity.y = (BALL_INITIAL_SPEED * 0.6f) * current_speed_y;
+            BallNode *ball = ball_head;
+            while (ball != NULL) {
+                float current_speed_x = (ball->velocity.x > 0) ? 1.0f : -1.0f;
+                float current_speed_y = (ball->velocity.y > 0) ? 1.0f : -1.0f;
+                ball->velocity.x = (BALL_INITIAL_SPEED * 0.6f) * current_speed_x;
+                ball->velocity.y = (BALL_INITIAL_SPEED * 0.6f) * current_speed_y;
+                ball = ball->next;
+            }
             break;
         }
-        case 4: 
+        case POWERUP_REVERSE_CONTROLS:
             player_paddle.controls_reversed = true;
             player_paddle.time_effect_started = GetTime(); 
             break;
-            
-        case 5: 
+        case POWERUP_GUN_PADDLE:
             player_paddle.has_gun = true;
-            player_paddle.time_gun_started = GetTime();
             break;
+        case POWERUP_MULTI_BALL:
+        {
+            if (ball_head != NULL) {
+                Vector2 basePos = ball_head->position;
+                Vector2 baseVel = ball_head->velocity;
+                SpawnBall(basePos, (Vector2){ -baseVel.x, baseVel.y }); 
+            }
+            break;
+        }
 
         default: break;
     }
 }
 
-void CheckBallBlockCollision(Ball *ball) 
+void CheckBallBlockCollision(BallNode *ball) 
 {
     for (int i = 0; i < BLOCK_ROWS; i++)
     {
@@ -347,17 +380,16 @@ void CheckBallBlockCollision(Ball *ball)
                             int randomLevel = GetRandomValue(0, 2); 
                             InitializeBlocks(randomLevel); 
                             
-                            ball->position = (Vector2){ current_screen_width / 2.0f, player_paddle.rect.y - BALL_RADIUS };
-                            
-                            float speedMultiplier = 1.1f;
-                            ball->velocity.y = (ball->velocity.y > 0) ? -BALL_INITIAL_SPEED * speedMultiplier : BALL_INITIAL_SPEED * speedMultiplier;
-                            ball->velocity.x = BALL_INITIAL_SPEED * speedMultiplier;
+                            ClearBalls();
+                            Vector2 startPos = { current_screen_width / 2.0f, player_paddle.rect.y - BALL_RADIUS };
+                            Vector2 startVel = { BALL_INITIAL_SPEED, -BALL_INITIAL_SPEED };
+                            SpawnBall(startPos, startVel);
                             
                             ClearPowerUps();
                         }
 
-                        if (GetRandomValue(1, 10) <= 4) {
-                            int power_type = GetRandomValue(1, 5);
+                        if (GetRandomValue(1, 10) <= 5) { 
+                            int power_type = GetRandomValue(1, POWERUP_MULTI_BALL); 
                             AddPowerUp(game_blocks[i][j].rect.x, game_blocks[i][j].rect.y, power_type);
                         }
                     }
@@ -370,31 +402,12 @@ void CheckBallBlockCollision(Ball *ball)
 
 void UpdateGame()
 {
-    const float EFFECT_DURATION = 10.0f; 
-    const float REVERSE_DURATION = 5.0f; 
-
     if (player_paddle.controls_reversed)
     {
-        if (GetTime() - player_paddle.time_effect_started >= REVERSE_DURATION)
+        const float EFFECT_DURATION = 5.0f; 
+        if (GetTime() - player_paddle.time_effect_started >= EFFECT_DURATION)
         {
             player_paddle.controls_reversed = false;
-        }
-    }
-
-    if (player_paddle.has_gun)
-    {
-        if (GetTime() - player_paddle.time_gun_started >= EFFECT_DURATION)
-        {
-            player_paddle.has_gun = false;
-        }
-    }
-
-    if (player_paddle.size_changed)
-    {
-        if (GetTime() - player_paddle.time_size_changed >= EFFECT_DURATION)
-        {
-            player_paddle.rect.width = current_screen_width * 0.125f;
-            player_paddle.size_changed = false;
         }
     }
 
@@ -418,36 +431,41 @@ void UpdateGame()
         ShootBullet();
     }
 
-    game_ball.position.x += game_ball.velocity.x;
-    game_ball.position.y += game_ball.velocity.y;
+    BallNode *current_ball = ball_head;
 
-    if ((game_ball.position.x + game_ball.radius >= current_screen_width) || (game_ball.position.x - game_ball.radius <= 0))
-        game_ball.velocity.x *= -1.0f;
-    if (game_ball.position.y - game_ball.radius <= 0)
-        game_ball.velocity.y *= -1.0f;
-    
-    if (game_ball.position.y + game_ball.radius >= current_screen_height)
+    while (current_ball != NULL)
     {
-        game_state = 2;
-        SaveScores(current_score);
-        ClearPowerUps();
-    }
-    
-    if (CheckCollisionCircleRec(game_ball.position, game_ball.radius, player_paddle.rect) && game_ball.velocity.y > 0)
-    {
-        game_ball.velocity.y *= -1.0f;
-        float hit_point = game_ball.position.x - player_paddle.rect.x;
-        float relative_hit = hit_point / player_paddle.rect.width;
-        float direction = (relative_hit * 2.0f - 1.0f);
-        float speed = (fabsf(game_ball.velocity.x) > fabsf(game_ball.velocity.y)) ? fabsf(game_ball.velocity.x) : fabsf(game_ball.velocity.y);
+        current_ball->position.x += current_ball->velocity.x;
+        current_ball->position.y += current_ball->velocity.y;
+
+        if ((current_ball->position.x + current_ball->radius >= current_screen_width) || (current_ball->position.x - current_ball->radius <= 0))
+            current_ball->velocity.x *= -1.0f;
+        if (current_ball->position.y - current_ball->radius <= 0)
+            current_ball->velocity.y *= -1.0f;
         
-        if (speed < BALL_INITIAL_SPEED) speed = BALL_INITIAL_SPEED * 1.05f;
+        if (current_ball->position.y + current_ball->radius >= current_screen_height)
+        {
+            game_state = 2;
+            SaveScores(current_score);
+            return; 
+        }
+        
+        if (CheckCollisionCircleRec(current_ball->position, current_ball->radius, player_paddle.rect) && current_ball->velocity.y > 0)
+        {
+            current_ball->velocity.y *= -1.0f;
+            float hit_point = current_ball->position.x - player_paddle.rect.x;
+            float relative_hit = hit_point / player_paddle.rect.width;
+            float direction = (relative_hit * 2.0f - 1.0f);
+            float speed = (fabsf(current_ball->velocity.x) > fabsf(current_ball->velocity.y)) ? fabsf(current_ball->velocity.x) : fabsf(current_ball->velocity.y);
+            
+            current_ball->velocity.x = direction * speed;
+            current_ball->velocity.y = -speed;
+        }
 
-        game_ball.velocity.x = direction * speed;
-        game_ball.velocity.y = -speed;
+        CheckBallBlockCollision(current_ball);
+
+        current_ball = current_ball->next;
     }
-
-    CheckBallBlockCollision(&game_ball);
 
     Bullet *current_bullet = bullet_head;
     Bullet *prev_bullet = NULL;
@@ -468,7 +486,12 @@ void UpdateGame()
                         if (active_blocks_count <= 0) {
                              int randomLevel = GetRandomValue(0, 2); 
                              InitializeBlocks(randomLevel); 
-                             game_ball.position = (Vector2){ current_screen_width / 2.0f, player_paddle.rect.y - BALL_RADIUS };
+                             
+                             ClearBalls();
+                             Vector2 startPos = { current_screen_width / 2.0f, player_paddle.rect.y - BALL_RADIUS };
+                             Vector2 startVel = { BALL_INITIAL_SPEED, -BALL_INITIAL_SPEED };
+                             SpawnBall(startPos, startVel);
+
                              ClearPowerUps();
                         }
                     }
@@ -491,7 +514,6 @@ void UpdateGame()
         prev_bullet = current_bullet;
         current_bullet = current_bullet->next;
     }
-
 
     PowerUpNode *current = powerup_head;
     PowerUpNode *prev = NULL;
@@ -531,13 +553,6 @@ void DrawSkinSelector()
 {
     float font_size_title = current_screen_height * 0.08f;
     float font_size_text = current_screen_height * 0.04f;
-    
-    Texture2D bg = background_textures[ball_skins.current_skin_index];
-    if (bg.id > 0) {
-        DrawTexturePro(bg, (Rectangle){0, 0, bg.width, bg.height}, (Rectangle){0, 0, current_screen_width, current_screen_height}, (Vector2){0,0}, 0.0f, WHITE);
-    } else {
-        DrawRectangleGradientV(0, 0, current_screen_width, current_screen_height, DARKBLUE, BLACK);
-    }
     
     DrawRectangle(0, 0, current_screen_width, current_screen_height, Fade(BLACK, 0.9f));
     
@@ -608,12 +623,22 @@ void DrawGame()
         DrawRectangleRec(player_paddle.rect, paddle_color);
         DrawRectangleLinesEx(player_paddle.rect, 2, SKYBLUE);
         
+        if (player_paddle.has_gun) {
+            const char *shootText = "PRESSIONE ESPACO PARA ATIRAR!";
+            int textW = MeasureText(shootText, 20);
+            DrawText(shootText, player_paddle.rect.x + player_paddle.rect.width/2 - textW/2, player_paddle.rect.y + 30, 20, YELLOW);
+        }
+
         if (game_state != 4) 
         {
             Texture2D current_texture = ball_skins.textures[ball_skins.current_skin_index];
-            Rectangle destRect = { game_ball.position.x - game_ball.radius, game_ball.position.y - game_ball.radius, game_ball.radius * 2, game_ball.radius * 2 };
-            Rectangle sourceRect = { 0.0f, 0.0f, (float)current_texture.width, (float)current_texture.height };
-            DrawTexturePro(current_texture, sourceRect, destRect, (Vector2){0,0}, 0.0f, WHITE);
+            BallNode *ball = ball_head;
+            while (ball != NULL) {
+                Rectangle destRect = { ball->position.x - ball->radius, ball->position.y - ball->radius, ball->radius * 2, ball->radius * 2 };
+                Rectangle sourceRect = { 0.0f, 0.0f, (float)current_texture.width, (float)current_texture.height };
+                DrawTexturePro(current_texture, sourceRect, destRect, (Vector2){0,0}, 0.0f, WHITE);
+                ball = ball->next;
+            }
         }
 
         Bullet *b = bullet_head;
@@ -625,36 +650,22 @@ void DrawGame()
         PowerUpNode *current = powerup_head;
         while (current != NULL)
         {
-            if (powerup_textures[current->type].id > 0) 
-            {
-                Texture2D tex = powerup_textures[current->type];
-                Rectangle source = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
-                DrawTexturePro(tex, source, current->rect, (Vector2){0,0}, 0.0f, WHITE);
-            }
-            else 
-            {
-                Color pColor = YELLOW;
-                if (current->type == 4) pColor = PURPLE;
-                else if (current->type == 5) pColor = RED;
-
-                DrawRectangleRec(current->rect, pColor);
-                DrawRectangleLinesEx(current->rect, 1, RAYWHITE);
+            if (powerup_textures[current->type].id > 0) {
+                 Texture2D tex = powerup_textures[current->type];
+                 DrawTexturePro(tex, (Rectangle){0,0,(float)tex.width,(float)tex.height}, current->rect, (Vector2){0,0}, 0.0f, WHITE);
+            } else {
+                 Color pColor = YELLOW;
+                 if (current->type == 1) pColor = MAGENTA;
+                 else if (current->type == 2) pColor = LIME;
+                 else if (current->type == 3) pColor = YELLOW;
+                 else if (current->type == 4) pColor = PURPLE;
+                 else if (current->type == 5) pColor = RED;
+                 else if (current->type == 6) pColor = SKYBLUE;
+                 DrawRectangleRec(current->rect, pColor);
             }
             current = current->next;
         }
-        DrawRectangleRec(player_paddle.rect, paddle_color);
-        DrawRectangleLinesEx(player_paddle.rect, 2, SKYBLUE);
         
-        if (player_paddle.has_gun) {
-            const char *text = "PRESS SPACE";
-            int textWidth = MeasureText(text, 20);
-            if ((int)(GetTime() * 5) % 2 == 0) { 
-                DrawText(text, 
-                         player_paddle.rect.x + player_paddle.rect.width/2 - textWidth/2, 
-                         player_paddle.rect.y - 25, 
-                         20, YELLOW);
-            }
-        }        
         DrawText(TextFormat("SCORE: %d", current_score), 10, 10, current_screen_height * 0.04f, WHITE); 
 
         if (game_state == 2)
@@ -714,9 +725,11 @@ void DrawGame()
                     }
                     key = GetCharPressed();
                 }
+
                 if (IsKeyPressed(KEY_BACKSPACE)) {
                     letter_count--; if (letter_count < 0) letter_count = 0; player_name[letter_count] = '\0';
                 }
+
                 if (IsKeyPressed(KEY_ENTER)) {
                     if (letter_count == 0) strcpy(player_name, "PLAYER"); 
                     is_typing = false; InitializeGame(); game_state = 1;
@@ -766,6 +779,7 @@ int main(void)
     powerup_textures[3] = LoadTexture("img/powerup_lento.png");
     powerup_textures[4] = LoadTexture("img/powerup_inverter.png");
     powerup_textures[5] = LoadTexture("img/powerup_arma.png");
+    powerup_textures[6] = LoadTexture("img/powerup_multibola.png");
     
     while (!WindowShouldClose())
     {
@@ -784,6 +798,7 @@ int main(void)
     UnloadTexture(powerup_textures[3]);
     UnloadTexture(powerup_textures[4]);
     UnloadTexture(powerup_textures[5]);
+    UnloadTexture(powerup_textures[6]);
     
     CloseWindow();
     return 0;
