@@ -1,3 +1,16 @@
+*.o
+*.a
+*.exe
 arkanoid
+
 *.dat
+scores.dat
+
 .vscode/
+.DS_Store
+*Zone.Identifier
+Thumbs.db
+
+raylib/
+raylib_install/
+cli-lib/
