@@ -9,8 +9,8 @@ O jogo apresenta mecânicas avançadas como sistema de física, partículas, mú
 
 ## 👥 Equipe
 * **Joao Arthur Gomes Duarte**
-* **Luiza**
-* **Maria Augusta**
+* **Luiza Barbosa Almeida da Silva**
+* **Maria Augusta Hatem da Fonte**
 
 ---
 
