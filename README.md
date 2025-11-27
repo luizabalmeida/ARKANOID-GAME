@@ -77,3 +77,4 @@ make
 ---
 
 ## 📺 Demonstração
+[![Gameplay Arkanoid](https://img.youtube.com/vi/Leen2FxqhsM/0.jpg)](https://youtu.be/Leen2FxqhsM)
