@@ -3,7 +3,7 @@
 
 #include "raylib.h"
 
- CONFIGURAÇÕES GERAIS 
+//CONFIGURAÇÕES GERAIS 
 #define MAX_SCORE_NAME 20      
 #define MAX_SKINS 23          
 #define NUM_PARTICLES 100       

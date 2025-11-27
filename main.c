@@ -106,106 +106,108 @@ int LAYOUTS_NIVEIS[3][LINHAS_BLOCOS][COLUNAS_BLOCOS] = {
     }
 };
 
+// Define as cores personalizadas para cada skin
 void InicializarCoresSkins() {
     for (int i = 0; i < MAX_SKINS; i++) {
         PALETAS_CORES[i][0] = GREEN;
         PALETAS_CORES[i][1] = ORANGE;
         PALETAS_CORES[i][2] = RED;
     }
-
+    //cor gelo
     PALETAS_CORES[0][0] = RAYWHITE;
     PALETAS_CORES[0][1] = SKYBLUE;
     PALETAS_CORES[0][2] = DARKBLUE;
-    
+    //cor terra
     PALETAS_CORES[1][0] = BEIGE;
     PALETAS_CORES[1][1] = BROWN;
     PALETAS_CORES[1][2] = DARKBROWN;
-
+    //cor trovao
     PALETAS_CORES[2][0] = LIGHTGRAY;
     PALETAS_CORES[2][1] = YELLOW;
     PALETAS_CORES[2][2] = DARKPURPLE;
-
+    //cor vidente
     PALETAS_CORES[3][0] = MAGENTA;
     PALETAS_CORES[3][1] = PURPLE;
     PALETAS_CORES[3][2] = DARKPURPLE;
-
+    //cor diamante
     PALETAS_CORES[4][0] = SKYBLUE;
     PALETAS_CORES[4][1] = BLUE;
     PALETAS_CORES[4][2] = DARKBLUE;
-
+    //cor xadrez
     PALETAS_CORES[5][0] = LIGHTGRAY;
     PALETAS_CORES[5][1] = DARKGRAY;
     PALETAS_CORES[5][2] = BLACK;
-
+    //cor camuflada
     PALETAS_CORES[6][0] = LIME;
     PALETAS_CORES[6][1] = DARKGREEN;
     PALETAS_CORES[6][2] = BROWN;
-
+    //cor mel
     PALETAS_CORES[7][0] = YELLOW;
     PALETAS_CORES[7][1] = GOLD;
     PALETAS_CORES[7][2] = ORANGE;
-
+    //cor pixelada
     PALETAS_CORES[8][0] = WHITE;
     PALETAS_CORES[8][1] = LIGHTGRAY;
     PALETAS_CORES[8][2] = GRAY;
-
+    //cor labirinto
     PALETAS_CORES[9][0] = WHITE;
     PALETAS_CORES[9][1] = GREEN;
     PALETAS_CORES[9][2] = BLACK;
-
+    //cor morango
     PALETAS_CORES[10][0] = GREEN;
     PALETAS_CORES[10][1] = RED;
     PALETAS_CORES[10][2] = BLACK;
-
+    //cor chocolate
     PALETAS_CORES[11][0] = (Color){ 122, 81, 55, 255 };
     PALETAS_CORES[11][1] = (Color){ 99, 65, 43, 255 };
     PALETAS_CORES[11][2] = (Color){ 64, 40, 24 , 255 };
-
+    //cor arco-iris
     PALETAS_CORES[12][0] = (Color){ 212, 188, 32, 255 };
     PALETAS_CORES[12][1] = (Color){110, 212, 32, 255 };
     PALETAS_CORES[12][2] = (Color){227, 56, 14, 255  };
-
+    //cor donut
     PALETAS_CORES[13][0] = (Color){183, 201, 44, 255  };
     PALETAS_CORES[13][1] = (Color){201, 44, 123, 255 };
     PALETAS_CORES[13][2] = (Color){158, 105, 74, 255  };
-
+    //cor pizza
     PALETAS_CORES[14][0] = (Color){245, 250, 147, 255 };
     PALETAS_CORES[14][1] = (Color){238, 247, 57, 255 };
     PALETAS_CORES[14][2] = (Color){227, 58, 11, 255 };
-
+    //cor hamburguer
     PALETAS_CORES[15][0] = (Color){214, 178, 99, 255 };
     PALETAS_CORES[15][1] = (Color){242, 39, 39, 255 };
     PALETAS_CORES[15][2] = (Color){89, 71, 29, 255 };
-
+    //cor sorvete
     PALETAS_CORES[16][0] = (Color){230, 207, 126, 255 };
     PALETAS_CORES[16][1] = (Color){247, 143, 190, 255 };
     PALETAS_CORES[16][2] = (Color){82, 65, 35, 255 };
-
+    //cor sushi
     PALETAS_CORES[17][0] = (Color){252, 244, 230, 255 };
     PALETAS_CORES[17][1] = (Color){252, 162, 83, 255 };
     PALETAS_CORES[17][2] = (Color){3, 36, 7, 255 };
-
+    //cor panda
     PALETAS_CORES[18][0] = (Color){242, 247, 243, 255 };
     PALETAS_CORES[18][1] = (Color){10, 10, 10, 255 };
     PALETAS_CORES[18][2] = (Color){105, 153, 96, 255 };
-
+    //cor cachorro
     PALETAS_CORES[19][0] = (Color){153, 151, 96, 255 };
     PALETAS_CORES[19][1] = (Color){64, 55, 36, 255 };
     PALETAS_CORES[19][2] = (Color){8, 8, 8, 255};
-
+    //cor coelho
     PALETAS_CORES[20][0] = (Color){252, 252, 252, 255 };
     PALETAS_CORES[20][1] = (Color){89, 87, 87, 255 };
     PALETAS_CORES[20][2] = (Color){10, 10, 10, 255};
-
+    //cor raposa
     PALETAS_CORES[21][0] = (Color){252, 163, 98, 255 };
     PALETAS_CORES[21][1] = (Color){247, 136, 54, 255 };
     PALETAS_CORES[21][2] = (Color){247, 118, 22, 255 };
-
+    //cor melancia
     PALETAS_CORES[22][0] = (Color){245, 53, 39, 255 };
     PALETAS_CORES[22][1] = (Color){59, 122, 47, 255 };
     PALETAS_CORES[22][2] = (Color){10, 10, 10, 255 };
 }
 
+// Configura as partículas iniciais do fundo
 void InicializarParticulas() {
     for (int i = 0; i < NUM_PARTICLES; i++) {
         particulas[i].position.x = GetRandomValue(0, largura_tela);
@@ -216,6 +218,7 @@ void InicializarParticulas() {
     }
 }
 
+// Atualiza a posição das partículas caindo
 void AtualizarParticulas() {
     for (int i = 0; i < NUM_PARTICLES; i++) {
         particulas[i].position.y += particulas[i].speed;
@@ -228,6 +231,7 @@ void AtualizarParticulas() {
     }
 }
 
+// Desenha as partículas na tela
 void DesenharParticulas() {
     for (int i = 0; i < NUM_PARTICLES; i++) {
         DrawLine(particulas[i].position.x, particulas[i].position.y,
@@ -236,6 +240,7 @@ void DesenharParticulas() {
     }
 }
 
+// Cria uma nova bola e adiciona à lista
 void CriarBola(Vector2 posicao, Vector2 velocidade) {
     BallNode *novaBola = (BallNode *)malloc(sizeof(BallNode));
     if (novaBola == NULL) return;
@@ -252,6 +257,7 @@ void CriarBola(Vector2 posicao, Vector2 velocidade) {
     cabeca_bola = novaBola;
 }
 
+// Remove todas as bolas da memória
 void LimparBolas() {
     BallNode *atual = cabeca_bola;
     while (atual != NULL) {
@@ -262,6 +268,7 @@ void LimparBolas() {
     cabeca_bola = NULL;
 }
 
+// Configura os blocos para um novo nível
 void InicializarBlocos(int indiceNivel)
 {
     float largura_bloco = (float)largura_tela / COLUNAS_BLOCOS;
@@ -292,6 +299,7 @@ void InicializarBlocos(int indiceNivel)
     }
 }
 
+// Dispara um projétil da raquete
 void Atirar()
 {
     if (GetTime() - raquete_jogador.time_last_shot < 0.25f) return;
@@ -313,6 +321,7 @@ void Atirar()
     raquete_jogador.time_last_shot = GetTime();
 }
 
+// Remove todos os powerups caindo
 void LimparPowerUps()
 {
     PowerUpNode *atual = cabeca_powerup;
@@ -325,6 +334,7 @@ void LimparPowerUps()
     cabeca_powerup = NULL;
 }
 
+// Reseta o estado do jogo para começar
 void InicializarJogo()
 {
     raquete_jogador.rect.width = largura_tela * 0.125f;
@@ -359,6 +369,7 @@ void InicializarJogo()
     InicializarBlocos(nivelAleatorio); 
 }
 
+// Lê o arquivo de recordes
 void CarregarPontuacoes() {
     FILE *arquivo = fopen("scores.dat", "rb");
     if (arquivo == NULL) {
@@ -372,6 +383,7 @@ void CarregarPontuacoes() {
     fclose(arquivo);
 }
 
+// Salva um novo recorde no arquivo
 void SalvarPontuacoes(int nova_pontuacao) {
     if (nova_pontuacao <= melhores_pontuacoes[MAX_PONTUACOES - 1].score) return;
     
@@ -396,6 +408,7 @@ void SalvarPontuacoes(int nova_pontuacao) {
     }
 }
 
+// Cria um novo powerup na tela
 void AdicionarPowerUp(float x, float y, int tipo)
 {
     PowerUpNode *novoNo = (PowerUpNode *)malloc(sizeof(PowerUpNode));
@@ -408,6 +421,7 @@ void AdicionarPowerUp(float x, float y, int tipo)
     cabeca_powerup = novoNo;
 }
 
+// Ativa o efeito do powerup coletado
 void AplicarPowerUp(int tipo)
 {
     switch (tipo) {
@@ -450,6 +464,7 @@ void AplicarPowerUp(int tipo)
     }
 }
 
+// Verifica e resolve colisão entre bola e tijolos
 void VerificarColisaoBolaBloco(BallNode *bola) 
 {
     for (int i = 0; i < LINHAS_BLOCOS; i++)
@@ -502,6 +517,7 @@ void VerificarColisaoBolaBloco(BallNode *bola)
     }
 }
 
+// Lógica principal de atualização do jogo a cada frame
 void AtualizarJogo()
 {
     if (raquete_jogador.controls_reversed)
@@ -656,6 +672,7 @@ void AtualizarJogo()
     }
 }
 
+// Desenha a tela de seleção de skin
 void DesenharSeletorSkin()
 {
     float tam_fonte_titulo = altura_tela * 0.08f;
@@ -686,7 +703,7 @@ void DesenharSeletorSkin()
     if (IsKeyPressed(KEY_ENTER)) estado_jogo = 3; 
 }
 
-
+// Função principal de desenho da tela do jogo
 void DesenharJogo()
 {
     if (estado_jogo != 1) AtualizarParticulas();
