@@ -2,76 +2,73 @@
 #define GAME_STRUCTS_H
 
 #include "raylib.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // --- CONFIGURAÇÕES GERAIS ---
-// Defines são constantes usadas para facilitar a manutenção do código.
-#define MAX_SCORE_NAME 20       // Tamanho máximo do nome no placar
-#define MAX_SKINS 23            // Quantidade total de skins disponíveis
-#define NUM_PARTICLES 100       // Quantidade de partículas no fundo (efeito visual)
-#define PARTICLE_LENGTH_MAX 15  // Tamanho máximo do rastro da partícula
-#define TRAIL_LENGTH 10         // Tamanho do rastro visual da bola
+#define MAX_SCORE_NAME 20       
+#define MAX_SKINS 23            
+#define NUM_PARTICLES 100       
+#define PARTICLE_LENGTH_MAX 15  
+#define TRAIL_LENGTH 10         
 
 // --- CÓDIGOS DOS POWER-UPS ---
-// Identificadores para o 'switch case' na lógica de powerups.
 #define POWERUP_REVERSE_CONTROLS 4
 #define POWERUP_GUN_PADDLE 5
 #define POWERUP_MULTI_BALL 6
 
 // --- ESTRUTURAS (STRUCTS) ---
 
-// Representa um tijolo na tela.
 typedef struct {
-    Rectangle rect; // Posição (x, y) e tamanho (width, height)
-    int type;       // Tipo lógico (não usado muito aqui, mas útil para expansão)
-    Color color;    // Cor do bloco (muda conforme a vida)
-    int is_active;  // 1 = existe, 0 = quebrado (não desenha nem colide)
-    int life;       // Vida do bloco (3 = vermelho, 2 = laranja, 1 = verde)
+    Rectangle rect; 
+    int type;       
+    Color color;    
+    int is_active;  
+    int life;       
 } Block;
 
-// Representa a Bola.
-// ATENÇÃO: Isso é um NÓ DE LISTA ENCADEADA.
-// Usamos lista para permitir o power-up "Multi-Bola" (várias bolas simultâneas).
 typedef struct BallNode {
-    Vector2 position; // Posição atual (x, y)
-    Vector2 velocity; // Velocidade vetorial (direção e rapidez)
-    float radius;     // Raio para colisão circular
-    Vector2 previous_positions[TRAIL_LENGTH]; // Vetor para desenhar o rastro
-    struct BallNode *next; // PONTEIRO para a próxima bola da lista (ou NULL)
+    Vector2 position; 
+    Vector2 velocity; 
+    float radius;     
+    Vector2 previous_positions[TRAIL_LENGTH]; 
+    struct BallNode *next; 
 } BallNode;
 
-// Representa a Raquete do jogador.
 typedef struct {
-    Rectangle rect; // Posição e tamanho da raquete
-    float speed;    // Velocidade de movimento lateral
+    Rectangle rect; 
+    float speed;    
     
     // Estados temporários (Power-ups)
-    bool controls_reversed;      // Se verdadeiro, esquerda vira direita
-    double time_effect_started;  // Marca o tempo que o efeito começou
+    bool controls_reversed;      
+    double time_effect_started;  
 
-    bool has_gun;                // Se verdadeiro, pode atirar
-    double time_gun_started;     // Tempo que pegou a arma
-    double time_last_shot;       // Controle de cadência de tiro (cooldown)
+    bool has_gun;                
+    double time_gun_started;     
+    double time_last_shot;       
 
-    bool size_changed;           // Se verdadeiro, tamanho está alterado (grande ou pequeno)
-    double time_size_changed;    // Tempo que mudou de tamanho
+    bool size_changed;           
+    double time_size_changed;    
+
+    // Variáveis para o Slow Motion
+    bool slow_active;            
+    double time_slow_started;    
+
 } Paddle;
 
-// Representa um item de PowerUp caindo.
-// TAMBÉM É UMA LISTA ENCADEADA (pode ter vários caindo ao mesmo tempo).
 typedef struct PowerUp {
-    Rectangle rect;          // Posição e tamanho do item caindo
-    int type;                // Qual poder ele dá (1 a 6)
-    float speed;             // Velocidade de queda
-    struct PowerUp *next;    // Ponteiro para o próximo powerup caindo
+    Rectangle rect;          
+    int type;                
+    float speed;             
+    struct PowerUp *next;    
 } PowerUpNode;
 
-// Estrutura simples para salvar no arquivo binário.
 typedef struct {
-    char name[MAX_SCORE_NAME]; // Nome do jogador
-    int score;                 // Pontuação
+    char name[MAX_SCORE_NAME]; 
+    int score;                 
 } HighScore;
 
-// Estrutura visual para o efeito de chuva no fundo.
 typedef struct {
     Vector2 position;
     float speed;
@@ -79,23 +76,19 @@ typedef struct {
     Color color;
 } FallingParticle;
 
-// Gerencia as texturas carregadas para não carregar a mesma imagem mil vezes.
 typedef struct {
-    Texture2D textures[MAX_SKINS]; // Vetor com todas as imagens carregadas
-    int current_skin_index;        // Qual skin está selecionada agora
+    Texture2D textures[MAX_SKINS]; 
+    int current_skin_index;        
 } SkinManager;
 
-// Representa um tiro da raquete.
-// LISTA ENCADEADA: O jogador pode atirar quantas vezes quiser.
 typedef struct Bullet {
     Rectangle rect;
     float speed;
     bool is_active;
-    struct Bullet *next; // Ponteiro para o próximo tiro
+    struct Bullet *next; 
 } Bullet;
 
-// --- VARIÁVEIS GLOBAIS (EXTERN) ---
-// Permite que outros arquivos (como o main.c) acessem essas variáveis.
+// Declarações externas (para que o main.c saiba que essas variáveis existem)
 extern PowerUpNode *powerup_head;
 extern SkinManager ball_skins;
 extern FallingParticle particles[NUM_PARTICLES];

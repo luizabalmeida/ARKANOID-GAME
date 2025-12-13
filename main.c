@@ -4,7 +4,7 @@
 #include <time.h>
 #include <string.h>
 #include <math.h>
-#include "game_structs.h"
+#include "game_structs.h" // Importa o arquivo acima
 
 #define NOME_JOGO "Projeto Arkanoid em C"
 
@@ -17,7 +17,6 @@
 
 #define MAX_PONTUACOES 5
 #define TAM_MAX_NOME 9
-#define MAX_SKINS 23
 
 #ifndef POWERUP_CONTROLES_INVERTIDOS
 #define POWERUP_CONTROLES_INVERTIDOS 4
@@ -39,12 +38,20 @@ int altura_tela = 450;
 
 Block blocos_jogo[LINHAS_BLOCOS][COLUNAS_BLOCOS];
 Paddle raquete_jogador;
+
+// Variáveis Globais de Ponteiros (Inicializadas aqui)
 BallNode *cabeca_bola = NULL;
 PowerUpNode *cabeca_powerup = NULL;
 Bullet *cabeca_projetil = NULL;
+FallingParticle particulas[NUM_PARTICLES];
+SkinManager skins_bola;
+
+// Declaração para cumprir o 'extern' do game_structs.h, se necessário
+// (Neste caso, as variáveis locais do main.c já servem como globais se não forem static)
 
 int pontuacao_atual = 0;
 int contagem_blocos_ativos = 0; 
+int nivel_atual = 0; 
 
 int estado_jogo = 4;
 HighScore melhores_pontuacoes[MAX_PONTUACOES];
@@ -56,8 +63,6 @@ bool esta_digitando = false;
 Texture2D texturas_fundo[MAX_SKINS];
 Texture2D texturas_blocos[MAX_SKINS][3]; 
 Texture2D texturas_powerup[7];
-SkinManager skins_bola;
-FallingParticle particulas[NUM_PARTICLES];
 
 Color PALETAS_CORES[MAX_SKINS][3]; 
 
@@ -106,108 +111,37 @@ int LAYOUTS_NIVEIS[3][LINHAS_BLOCOS][COLUNAS_BLOCOS] = {
     }
 };
 
-// Define as cores personalizadas para cada skin
 void InicializarCoresSkins() {
     for (int i = 0; i < MAX_SKINS; i++) {
         PALETAS_CORES[i][0] = GREEN;
         PALETAS_CORES[i][1] = ORANGE;
         PALETAS_CORES[i][2] = RED;
     }
-    //cor gelo
-    PALETAS_CORES[0][0] = RAYWHITE;
-    PALETAS_CORES[0][1] = SKYBLUE;
-    PALETAS_CORES[0][2] = DARKBLUE;
-    //cor terra
-    PALETAS_CORES[1][0] = BEIGE;
-    PALETAS_CORES[1][1] = BROWN;
-    PALETAS_CORES[1][2] = DARKBROWN;
-    //cor trovao
-    PALETAS_CORES[2][0] = LIGHTGRAY;
-    PALETAS_CORES[2][1] = YELLOW;
-    PALETAS_CORES[2][2] = DARKPURPLE;
-    //cor vidente
-    PALETAS_CORES[3][0] = MAGENTA;
-    PALETAS_CORES[3][1] = PURPLE;
-    PALETAS_CORES[3][2] = DARKPURPLE;
-    //cor diamante
-    PALETAS_CORES[4][0] = SKYBLUE;
-    PALETAS_CORES[4][1] = BLUE;
-    PALETAS_CORES[4][2] = DARKBLUE;
-    //cor xadrez
-    PALETAS_CORES[5][0] = LIGHTGRAY;
-    PALETAS_CORES[5][1] = DARKGRAY;
-    PALETAS_CORES[5][2] = BLACK;
-    //cor camuflada
-    PALETAS_CORES[6][0] = LIME;
-    PALETAS_CORES[6][1] = DARKGREEN;
-    PALETAS_CORES[6][2] = BROWN;
-    //cor mel
-    PALETAS_CORES[7][0] = YELLOW;
-    PALETAS_CORES[7][1] = GOLD;
-    PALETAS_CORES[7][2] = ORANGE;
-    //cor pixelada
-    PALETAS_CORES[8][0] = WHITE;
-    PALETAS_CORES[8][1] = LIGHTGRAY;
-    PALETAS_CORES[8][2] = GRAY;
-    //cor labirinto
-    PALETAS_CORES[9][0] = WHITE;
-    PALETAS_CORES[9][1] = GREEN;
-    PALETAS_CORES[9][2] = BLACK;
-    //cor morango
-    PALETAS_CORES[10][0] = GREEN;
-    PALETAS_CORES[10][1] = RED;
-    PALETAS_CORES[10][2] = BLACK;
-    //cor chocolate
-    PALETAS_CORES[11][0] = (Color){ 122, 81, 55, 255 };
-    PALETAS_CORES[11][1] = (Color){ 99, 65, 43, 255 };
-    PALETAS_CORES[11][2] = (Color){ 64, 40, 24 , 255 };
-    //cor arco-iris
-    PALETAS_CORES[12][0] = (Color){ 212, 188, 32, 255 };
-    PALETAS_CORES[12][1] = (Color){110, 212, 32, 255 };
-    PALETAS_CORES[12][2] = (Color){227, 56, 14, 255  };
-    //cor donut
-    PALETAS_CORES[13][0] = (Color){183, 201, 44, 255  };
-    PALETAS_CORES[13][1] = (Color){201, 44, 123, 255 };
-    PALETAS_CORES[13][2] = (Color){158, 105, 74, 255  };
-    //cor pizza
-    PALETAS_CORES[14][0] = (Color){245, 250, 147, 255 };
-    PALETAS_CORES[14][1] = (Color){238, 247, 57, 255 };
-    PALETAS_CORES[14][2] = (Color){227, 58, 11, 255 };
-    //cor hamburguer
-    PALETAS_CORES[15][0] = (Color){214, 178, 99, 255 };
-    PALETAS_CORES[15][1] = (Color){242, 39, 39, 255 };
-    PALETAS_CORES[15][2] = (Color){89, 71, 29, 255 };
-    //cor sorvete
-    PALETAS_CORES[16][0] = (Color){230, 207, 126, 255 };
-    PALETAS_CORES[16][1] = (Color){247, 143, 190, 255 };
-    PALETAS_CORES[16][2] = (Color){82, 65, 35, 255 };
-    //cor sushi
-    PALETAS_CORES[17][0] = (Color){252, 244, 230, 255 };
-    PALETAS_CORES[17][1] = (Color){252, 162, 83, 255 };
-    PALETAS_CORES[17][2] = (Color){3, 36, 7, 255 };
-    //cor panda
-    PALETAS_CORES[18][0] = (Color){242, 247, 243, 255 };
-    PALETAS_CORES[18][1] = (Color){10, 10, 10, 255 };
-    PALETAS_CORES[18][2] = (Color){105, 153, 96, 255 };
-    //cor cachorro
-    PALETAS_CORES[19][0] = (Color){153, 151, 96, 255 };
-    PALETAS_CORES[19][1] = (Color){64, 55, 36, 255 };
-    PALETAS_CORES[19][2] = (Color){8, 8, 8, 255};
-    //cor coelho
-    PALETAS_CORES[20][0] = (Color){252, 252, 252, 255 };
-    PALETAS_CORES[20][1] = (Color){89, 87, 87, 255 };
-    PALETAS_CORES[20][2] = (Color){10, 10, 10, 255};
-    //cor raposa
-    PALETAS_CORES[21][0] = (Color){252, 163, 98, 255 };
-    PALETAS_CORES[21][1] = (Color){247, 136, 54, 255 };
-    PALETAS_CORES[21][2] = (Color){247, 118, 22, 255 };
-    //cor melancia
-    PALETAS_CORES[22][0] = (Color){245, 53, 39, 255 };
-    PALETAS_CORES[22][1] = (Color){59, 122, 47, 255 };
-    PALETAS_CORES[22][2] = (Color){10, 10, 10, 255 };
+    PALETAS_CORES[0][0] = RAYWHITE; PALETAS_CORES[0][1] = SKYBLUE; PALETAS_CORES[0][2] = DARKBLUE;
+    PALETAS_CORES[1][0] = BEIGE; PALETAS_CORES[1][1] = BROWN; PALETAS_CORES[1][2] = DARKBROWN;
+    PALETAS_CORES[2][0] = LIGHTGRAY; PALETAS_CORES[2][1] = YELLOW; PALETAS_CORES[2][2] = DARKPURPLE;
+    PALETAS_CORES[3][0] = MAGENTA; PALETAS_CORES[3][1] = PURPLE; PALETAS_CORES[3][2] = DARKPURPLE;
+    PALETAS_CORES[4][0] = SKYBLUE; PALETAS_CORES[4][1] = BLUE; PALETAS_CORES[4][2] = DARKBLUE;
+    PALETAS_CORES[5][0] = LIGHTGRAY; PALETAS_CORES[5][1] = DARKGRAY; PALETAS_CORES[5][2] = BLACK;
+    PALETAS_CORES[6][0] = LIME; PALETAS_CORES[6][1] = DARKGREEN; PALETAS_CORES[6][2] = BROWN;
+    PALETAS_CORES[7][0] = YELLOW; PALETAS_CORES[7][1] = GOLD; PALETAS_CORES[7][2] = ORANGE;
+    PALETAS_CORES[8][0] = WHITE; PALETAS_CORES[8][1] = LIGHTGRAY; PALETAS_CORES[8][2] = GRAY;
+    PALETAS_CORES[9][0] = WHITE; PALETAS_CORES[9][1] = GREEN; PALETAS_CORES[9][2] = BLACK;
+    PALETAS_CORES[10][0] = GREEN; PALETAS_CORES[10][1] = RED; PALETAS_CORES[10][2] = BLACK;
+    PALETAS_CORES[11][0] = (Color){ 122, 81, 55, 255 }; PALETAS_CORES[11][1] = (Color){ 99, 65, 43, 255 }; PALETAS_CORES[11][2] = (Color){ 64, 40, 24 , 255 };
+    PALETAS_CORES[12][0] = (Color){ 212, 188, 32, 255 }; PALETAS_CORES[12][1] = (Color){110, 212, 32, 255 }; PALETAS_CORES[12][2] = (Color){227, 56, 14, 255  };
+    PALETAS_CORES[13][0] = (Color){183, 201, 44, 255  }; PALETAS_CORES[13][1] = (Color){201, 44, 123, 255 }; PALETAS_CORES[13][2] = (Color){158, 105, 74, 255  };
+    PALETAS_CORES[14][0] = (Color){245, 250, 147, 255 }; PALETAS_CORES[14][1] = (Color){238, 247, 57, 255 }; PALETAS_CORES[14][2] = (Color){227, 58, 11, 255 };
+    PALETAS_CORES[15][0] = (Color){214, 178, 99, 255 }; PALETAS_CORES[15][1] = (Color){242, 39, 39, 255 }; PALETAS_CORES[15][2] = (Color){89, 71, 29, 255 };
+    PALETAS_CORES[16][0] = (Color){230, 207, 126, 255 }; PALETAS_CORES[16][1] = (Color){247, 143, 190, 255 }; PALETAS_CORES[16][2] = (Color){82, 65, 35, 255 };
+    PALETAS_CORES[17][0] = (Color){252, 244, 230, 255 }; PALETAS_CORES[17][1] = (Color){252, 162, 83, 255 }; PALETAS_CORES[17][2] = (Color){3, 36, 7, 255 };
+    PALETAS_CORES[18][0] = (Color){242, 247, 243, 255 }; PALETAS_CORES[18][1] = (Color){10, 10, 10, 255 }; PALETAS_CORES[18][2] = (Color){105, 153, 96, 255 };
+    PALETAS_CORES[19][0] = (Color){153, 151, 96, 255 }; PALETAS_CORES[19][1] = (Color){64, 55, 36, 255 }; PALETAS_CORES[19][2] = (Color){8, 8, 8, 255};
+    PALETAS_CORES[20][0] = (Color){252, 252, 252, 255 }; PALETAS_CORES[20][1] = (Color){89, 87, 87, 255 }; PALETAS_CORES[20][2] = (Color){10, 10, 10, 255};
+    PALETAS_CORES[21][0] = (Color){252, 163, 98, 255 }; PALETAS_CORES[21][1] = (Color){247, 136, 54, 255 }; PALETAS_CORES[21][2] = (Color){247, 118, 22, 255 };
+    PALETAS_CORES[22][0] = (Color){245, 53, 39, 255 }; PALETAS_CORES[22][1] = (Color){59, 122, 47, 255 }; PALETAS_CORES[22][2] = (Color){10, 10, 10, 255 };
 }
 
-// Configura as partículas iniciais do fundo
 void InicializarParticulas() {
     for (int i = 0; i < NUM_PARTICLES; i++) {
         particulas[i].position.x = GetRandomValue(0, largura_tela);
@@ -218,7 +152,6 @@ void InicializarParticulas() {
     }
 }
 
-// Atualiza a posição das partículas caindo
 void AtualizarParticulas() {
     for (int i = 0; i < NUM_PARTICLES; i++) {
         particulas[i].position.y += particulas[i].speed;
@@ -231,7 +164,6 @@ void AtualizarParticulas() {
     }
 }
 
-// Desenha as partículas na tela
 void DesenharParticulas() {
     for (int i = 0; i < NUM_PARTICLES; i++) {
         DrawLine(particulas[i].position.x, particulas[i].position.y,
@@ -240,7 +172,6 @@ void DesenharParticulas() {
     }
 }
 
-// Cria uma nova bola e adiciona à lista
 void CriarBola(Vector2 posicao, Vector2 velocidade) {
     BallNode *novaBola = (BallNode *)malloc(sizeof(BallNode));
     if (novaBola == NULL) return;
@@ -257,7 +188,6 @@ void CriarBola(Vector2 posicao, Vector2 velocidade) {
     cabeca_bola = novaBola;
 }
 
-// Remove todas as bolas da memória
 void LimparBolas() {
     BallNode *atual = cabeca_bola;
     while (atual != NULL) {
@@ -268,7 +198,6 @@ void LimparBolas() {
     cabeca_bola = NULL;
 }
 
-// Configura os blocos para um novo nível
 void InicializarBlocos(int indiceNivel)
 {
     float largura_bloco = (float)largura_tela / COLUNAS_BLOCOS;
@@ -282,6 +211,9 @@ void InicializarBlocos(int indiceNivel)
         for (int j = 0; j < COLUNAS_BLOCOS; j++)
         {
             blocos_jogo[i][j].rect = (Rectangle){ j * largura_bloco, topo_offset + i * altura_bloco, largura_bloco, altura_bloco };
+            
+            if (indiceNivel > 2) indiceNivel = 0; 
+
             int tipo = LAYOUTS_NIVEIS[indiceNivel][i][j];
 
             if (tipo > 0) 
@@ -299,7 +231,6 @@ void InicializarBlocos(int indiceNivel)
     }
 }
 
-// Dispara um projétil da raquete
 void Atirar()
 {
     if (GetTime() - raquete_jogador.time_last_shot < 0.25f) return;
@@ -321,7 +252,6 @@ void Atirar()
     raquete_jogador.time_last_shot = GetTime();
 }
 
-// Remove todos os powerups caindo
 void LimparPowerUps()
 {
     PowerUpNode *atual = cabeca_powerup;
@@ -334,7 +264,34 @@ void LimparPowerUps()
     cabeca_powerup = NULL;
 }
 
-// Reseta o estado do jogo para começar
+void LimparProjeteis()
+{
+    Bullet *atual = cabeca_projetil;
+    while (atual != NULL) {
+        Bullet *proximo = atual->next;
+        free(atual);
+        atual = proximo;
+    }
+    cabeca_projetil = NULL;
+}
+
+void AvancarProximoNivel()
+{
+    nivel_atual++; 
+    if (nivel_atual > 2) nivel_atual = 0; 
+
+    InicializarBlocos(nivel_atual); 
+    
+    LimparBolas();
+    raquete_jogador.rect.x = (largura_tela / 2) - (raquete_jogador.rect.width / 2);
+    Vector2 posInicial = { largura_tela / 2.0f, raquete_jogador.rect.y - RAIO_BOLA };
+    Vector2 velInicial = { VELOCIDADE_INICIAL_BOLA, -VELOCIDADE_INICIAL_BOLA };
+    CriarBola(posInicial, velInicial);
+
+    LimparPowerUps();
+    LimparProjeteis();
+}
+
 void InicializarJogo()
 {
     raquete_jogador.rect.width = largura_tela * 0.125f;
@@ -349,18 +306,14 @@ void InicializarJogo()
     raquete_jogador.has_gun = false;
     raquete_jogador.time_last_shot = 0.0;
     
-    // Resetando flags de tamanho
     raquete_jogador.size_changed = false;
     raquete_jogador.time_size_changed = 0.0;
 
-    Bullet *atual = cabeca_projetil;
-    while (atual != NULL) {
-        Bullet *proximo = atual->next;
-        free(atual);
-        atual = proximo;
-    }
-    cabeca_projetil = NULL;
-    
+    // Reset do Slow Motion
+    raquete_jogador.slow_active = false;
+    raquete_jogador.time_slow_started = 0.0;
+
+    LimparProjeteis();
     LimparPowerUps();
     LimparBolas(); 
 
@@ -369,11 +322,11 @@ void InicializarJogo()
     CriarBola(posInicial, velInicial);
     
     pontuacao_atual = 0;
-    int nivelAleatorio = GetRandomValue(0, 2);
-    InicializarBlocos(nivelAleatorio); 
+    
+    nivel_atual = 0;
+    InicializarBlocos(nivel_atual); 
 }
 
-// Lê o arquivo de recordes
 void CarregarPontuacoes() {
     FILE *arquivo = fopen("scores.dat", "rb");
     if (arquivo == NULL) {
@@ -387,7 +340,6 @@ void CarregarPontuacoes() {
     fclose(arquivo);
 }
 
-// Salva um novo recorde no arquivo
 void SalvarPontuacoes(int nova_pontuacao) {
     if (nova_pontuacao <= melhores_pontuacoes[MAX_PONTUACOES - 1].score) return;
     
@@ -412,7 +364,6 @@ void SalvarPontuacoes(int nova_pontuacao) {
     }
 }
 
-// Cria um novo powerup na tela
 void AdicionarPowerUp(float x, float y, int tipo)
 {
     PowerUpNode *novoNo = (PowerUpNode *)malloc(sizeof(PowerUpNode));
@@ -425,28 +376,30 @@ void AdicionarPowerUp(float x, float y, int tipo)
     cabeca_powerup = novoNo;
 }
 
-// Ativa o efeito do powerup coletado
 void AplicarPowerUp(int tipo)
 {
     switch (tipo) {
-        case 1: // Aumentar
+        case 1: 
             raquete_jogador.rect.width = largura_tela * 0.20f;
-            raquete_jogador.size_changed = true; // --- CORRIGIDO: Ativa timer ---
+            raquete_jogador.size_changed = true; 
             raquete_jogador.time_size_changed = GetTime();
             break;
-        case 2: // Diminuir
+        case 2: 
             raquete_jogador.rect.width = largura_tela * 0.08f;
-            raquete_jogador.size_changed = true; // --- CORRIGIDO: Ativa timer ---
+            raquete_jogador.size_changed = true; 
             raquete_jogador.time_size_changed = GetTime();
             break;
-        case 3:
+        case 3: // PowerUp: Slow Motion
         {
+            raquete_jogador.slow_active = true;
+            raquete_jogador.time_slow_started = GetTime();
+
             BallNode *bola = cabeca_bola;
             while (bola != NULL) {
                 float vel_atual_x = (bola->velocity.x > 0) ? 1.0f : -1.0f;
                 float vel_atual_y = (bola->velocity.y > 0) ? 1.0f : -1.0f;
-                bola->velocity.x = (VELOCIDADE_INICIAL_BOLA * 0.6f) * vel_atual_x;
-                bola->velocity.y = (VELOCIDADE_INICIAL_BOLA * 0.6f) * vel_atual_y;
+                bola->velocity.x = (VELOCIDADE_INICIAL_BOLA * 0.5f) * vel_atual_x;
+                bola->velocity.y = (VELOCIDADE_INICIAL_BOLA * 0.5f) * vel_atual_y;
                 bola = bola->next;
             }
             break;
@@ -457,7 +410,7 @@ void AplicarPowerUp(int tipo)
             break;
         case POWERUP_RAQUETE_ARMA:
             raquete_jogador.has_gun = true;
-            raquete_jogador.time_gun_started = GetTime(); // Garante timer da arma
+            raquete_jogador.time_gun_started = GetTime(); 
             break;
         case POWERUP_MULTI_BOLA:
         {
@@ -473,7 +426,6 @@ void AplicarPowerUp(int tipo)
     }
 }
 
-// Verifica e resolve colisão entre bola e tijolos
 void VerificarColisaoBolaBloco(BallNode *bola) 
 {
     for (int i = 0; i < LINHAS_BLOCOS; i++)
@@ -503,15 +455,7 @@ void VerificarColisaoBolaBloco(BallNode *bola)
                         
                         if (contagem_blocos_ativos <= 0) 
                         {
-                            int nivelAleatorio = GetRandomValue(0, 2); 
-                            InicializarBlocos(nivelAleatorio); 
-                            
-                            LimparBolas();
-                            Vector2 posInicial = { largura_tela / 2.0f, raquete_jogador.rect.y - RAIO_BOLA };
-                            Vector2 velInicial = { VELOCIDADE_INICIAL_BOLA, -VELOCIDADE_INICIAL_BOLA };
-                            CriarBola(posInicial, velInicial);
-                            
-                            LimparPowerUps();
+                            AvancarProximoNivel();
                         }
 
                         if (GetRandomValue(1, 10) <= 5) { 
@@ -526,10 +470,8 @@ void VerificarColisaoBolaBloco(BallNode *bola)
     }
 }
 
-// Lógica principal de atualização do jogo a cada frame
 void AtualizarJogo()
 {
-    // Efeito: Controles Invertidos
     if (raquete_jogador.controls_reversed)
     {
         const float DURACAO_EFEITO = 5.0f; 
@@ -539,26 +481,40 @@ void AtualizarJogo()
         }
     }
 
-    // --- CORRIGIDO: Efeito: Tamanho da Raquete (Timer de 10s) ---
     if (raquete_jogador.size_changed)
     {
-        const float DURACAO_TAMANHO = 10.0f; // Duração de 10 segundos
+        const float DURACAO_TAMANHO = 10.0f; 
         if (GetTime() - raquete_jogador.time_size_changed >= DURACAO_TAMANHO)
         {
-            // Volta para o tamanho original (definido no InicializarJogo como 0.125f)
             raquete_jogador.rect.width = largura_tela * 0.125f; 
             raquete_jogador.size_changed = false;
         }
     }
 
-    // Efeito: Arma
+    if (raquete_jogador.slow_active)
+    {
+        const float DURACAO_SLOW = 10.0f;
+        if (GetTime() - raquete_jogador.time_slow_started >= DURACAO_SLOW)
+        {
+            raquete_jogador.slow_active = false;
+            
+            BallNode *b = cabeca_bola;
+            while (b != NULL) {
+                float vel_atual_x = (b->velocity.x > 0) ? 1.0f : -1.0f;
+                float vel_atual_y = (b->velocity.y > 0) ? 1.0f : -1.0f;
+                b->velocity.x = VELOCIDADE_INICIAL_BOLA * vel_atual_x;
+                b->velocity.y = VELOCIDADE_INICIAL_BOLA * vel_atual_y;
+                b = b->next;
+            }
+        }
+    }
+
     if (raquete_jogador.has_gun) {
         if (GetTime() - raquete_jogador.time_gun_started >= 10.0f) {
             raquete_jogador.has_gun = false;
         }
     }
 
-    // Movimento da Raquete
     if (raquete_jogador.controls_reversed)
     {
         if (IsKeyDown(KEY_LEFT)) raquete_jogador.rect.x += raquete_jogador.speed; 
@@ -579,53 +535,43 @@ void AtualizarJogo()
         Atirar();
     }
 
-    // --- CORRIGIDO: Loop das Bolas (Remoção Individual e Game Over Condicional) ---
     BallNode *bola_atual = cabeca_bola;
-    BallNode *bola_anterior = NULL; // Precisamos rastrear o anterior para remover
+    BallNode *bola_anterior = NULL; 
 
     while (bola_atual != NULL)
     {
-        // Rastro
         for (int i = TRAIL_LENGTH - 1; i > 0; i--) {
             bola_atual->previous_positions[i] = bola_atual->previous_positions[i - 1];
         }
         bola_atual->previous_positions[0] = bola_atual->position;
 
-        // Movimento
         bola_atual->position.x += bola_atual->velocity.x;
         bola_atual->position.y += bola_atual->velocity.y;
 
-        // Paredes Laterais
         if ((bola_atual->position.x + bola_atual->radius >= largura_tela) || (bola_atual->position.x - bola_atual->radius <= 0))
             bola_atual->velocity.x *= -1.0f;
-        // Teto
+        
         if (bola_atual->position.y - bola_atual->radius <= 0)
             bola_atual->velocity.y *= -1.0f;
         
-        // --- Chão (Bola Caiu) ---
         if (bola_atual->position.y - bola_atual->radius >= altura_tela)
         {
-            // Remove da lista
             if (bola_anterior == NULL) cabeca_bola = bola_atual->next;
             else bola_anterior->next = bola_atual->next;
 
             BallNode *temp = bola_atual;
-            bola_atual = bola_atual->next; // Avança antes de apagar
+            bola_atual = bola_atual->next; 
             free(temp);
 
-            // Se NÃO tem mais bolas na lista, aí sim é Game Over
             if (cabeca_bola == NULL)
             {
                 estado_jogo = 2;
                 SalvarPontuacoes(pontuacao_atual);
                 return; 
             }
-            
-            // Se ainda tem bolas, pula o resto e continua o loop
             continue; 
         }
         
-        // Colisão com Raquete
         if (CheckCollisionCircleRec(bola_atual->position, bola_atual->radius, raquete_jogador.rect) && bola_atual->velocity.y > 0)
         {
             bola_atual->velocity.y *= -1.0f;
@@ -643,7 +589,6 @@ void AtualizarJogo()
         bola_anterior = bola_atual;
         bola_atual = bola_atual->next;
     }
-    // -----------------------------------------------------------
 
     Bullet *projetil_atual = cabeca_projetil;
     Bullet *projetil_anterior = NULL;
@@ -661,16 +606,9 @@ void AtualizarJogo()
                         blocos_jogo[i][j].is_active = 0;
                         contagem_blocos_ativos--;
                         pontuacao_atual += 10;
+                        
                         if (contagem_blocos_ativos <= 0) {
-                             int nivelAleatorio = GetRandomValue(0, 2); 
-                             InicializarBlocos(nivelAleatorio); 
-                             
-                             LimparBolas();
-                             Vector2 posInicial = { largura_tela / 2.0f, raquete_jogador.rect.y - RAIO_BOLA };
-                             Vector2 velInicial = { VELOCIDADE_INICIAL_BOLA, -VELOCIDADE_INICIAL_BOLA };
-                             CriarBola(posInicial, velInicial);
-
-                             LimparPowerUps();
+                             AvancarProximoNivel();
                         }
                     }
                     pontuacao_atual += 5;
@@ -727,7 +665,6 @@ void AtualizarJogo()
     }
 }
 
-// Desenha a tela de seleção de skin
 void DesenharSeletorSkin()
 {
     float tam_fonte_titulo = altura_tela * 0.08f;
@@ -758,7 +695,6 @@ void DesenharSeletorSkin()
     if (IsKeyPressed(KEY_ENTER)) estado_jogo = 3; 
 }
 
-// Função principal de desenho da tela do jogo
 void DesenharJogo()
 {
     if (estado_jogo != 1) AtualizarParticulas();
@@ -870,7 +806,7 @@ void DesenharJogo()
             atual = atual->next;
         }
         
-        DrawText(TextFormat("PONTUACAO: %d", pontuacao_atual), 10, 10, altura_tela * 0.04f, WHITE); 
+        DrawText(TextFormat("PONTUACAO: %d | FASE: %d", pontuacao_atual, nivel_atual + 1), 10, 10, altura_tela * 0.04f, WHITE); 
 
         if (estado_jogo == 2)
         {
