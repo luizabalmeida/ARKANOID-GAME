@@ -348,6 +348,10 @@ void InicializarJogo()
     
     raquete_jogador.has_gun = false;
     raquete_jogador.time_last_shot = 0.0;
+    
+    // Resetando flags de tamanho
+    raquete_jogador.size_changed = false;
+    raquete_jogador.time_size_changed = 0.0;
 
     Bullet *atual = cabeca_projetil;
     while (atual != NULL) {
@@ -425,11 +429,15 @@ void AdicionarPowerUp(float x, float y, int tipo)
 void AplicarPowerUp(int tipo)
 {
     switch (tipo) {
-        case 1: 
+        case 1: // Aumentar
             raquete_jogador.rect.width = largura_tela * 0.20f;
+            raquete_jogador.size_changed = true; // --- CORRIGIDO: Ativa timer ---
+            raquete_jogador.time_size_changed = GetTime();
             break;
-        case 2: 
+        case 2: // Diminuir
             raquete_jogador.rect.width = largura_tela * 0.08f;
+            raquete_jogador.size_changed = true; // --- CORRIGIDO: Ativa timer ---
+            raquete_jogador.time_size_changed = GetTime();
             break;
         case 3:
         {
@@ -449,6 +457,7 @@ void AplicarPowerUp(int tipo)
             break;
         case POWERUP_RAQUETE_ARMA:
             raquete_jogador.has_gun = true;
+            raquete_jogador.time_gun_started = GetTime(); // Garante timer da arma
             break;
         case POWERUP_MULTI_BOLA:
         {
@@ -520,6 +529,7 @@ void VerificarColisaoBolaBloco(BallNode *bola)
 // Lógica principal de atualização do jogo a cada frame
 void AtualizarJogo()
 {
+    // Efeito: Controles Invertidos
     if (raquete_jogador.controls_reversed)
     {
         const float DURACAO_EFEITO = 5.0f; 
@@ -529,6 +539,26 @@ void AtualizarJogo()
         }
     }
 
+    // --- CORRIGIDO: Efeito: Tamanho da Raquete (Timer de 10s) ---
+    if (raquete_jogador.size_changed)
+    {
+        const float DURACAO_TAMANHO = 10.0f; // Duração de 10 segundos
+        if (GetTime() - raquete_jogador.time_size_changed >= DURACAO_TAMANHO)
+        {
+            // Volta para o tamanho original (definido no InicializarJogo como 0.125f)
+            raquete_jogador.rect.width = largura_tela * 0.125f; 
+            raquete_jogador.size_changed = false;
+        }
+    }
+
+    // Efeito: Arma
+    if (raquete_jogador.has_gun) {
+        if (GetTime() - raquete_jogador.time_gun_started >= 10.0f) {
+            raquete_jogador.has_gun = false;
+        }
+    }
+
+    // Movimento da Raquete
     if (raquete_jogador.controls_reversed)
     {
         if (IsKeyDown(KEY_LEFT)) raquete_jogador.rect.x += raquete_jogador.speed; 
@@ -549,30 +579,53 @@ void AtualizarJogo()
         Atirar();
     }
 
+    // --- CORRIGIDO: Loop das Bolas (Remoção Individual e Game Over Condicional) ---
     BallNode *bola_atual = cabeca_bola;
+    BallNode *bola_anterior = NULL; // Precisamos rastrear o anterior para remover
 
     while (bola_atual != NULL)
     {
+        // Rastro
         for (int i = TRAIL_LENGTH - 1; i > 0; i--) {
             bola_atual->previous_positions[i] = bola_atual->previous_positions[i - 1];
         }
         bola_atual->previous_positions[0] = bola_atual->position;
 
+        // Movimento
         bola_atual->position.x += bola_atual->velocity.x;
         bola_atual->position.y += bola_atual->velocity.y;
 
+        // Paredes Laterais
         if ((bola_atual->position.x + bola_atual->radius >= largura_tela) || (bola_atual->position.x - bola_atual->radius <= 0))
             bola_atual->velocity.x *= -1.0f;
+        // Teto
         if (bola_atual->position.y - bola_atual->radius <= 0)
             bola_atual->velocity.y *= -1.0f;
         
-        if (bola_atual->position.y + bola_atual->radius >= altura_tela)
+        // --- Chão (Bola Caiu) ---
+        if (bola_atual->position.y - bola_atual->radius >= altura_tela)
         {
-            estado_jogo = 2;
-            SalvarPontuacoes(pontuacao_atual);
-            return; 
+            // Remove da lista
+            if (bola_anterior == NULL) cabeca_bola = bola_atual->next;
+            else bola_anterior->next = bola_atual->next;
+
+            BallNode *temp = bola_atual;
+            bola_atual = bola_atual->next; // Avança antes de apagar
+            free(temp);
+
+            // Se NÃO tem mais bolas na lista, aí sim é Game Over
+            if (cabeca_bola == NULL)
+            {
+                estado_jogo = 2;
+                SalvarPontuacoes(pontuacao_atual);
+                return; 
+            }
+            
+            // Se ainda tem bolas, pula o resto e continua o loop
+            continue; 
         }
         
+        // Colisão com Raquete
         if (CheckCollisionCircleRec(bola_atual->position, bola_atual->radius, raquete_jogador.rect) && bola_atual->velocity.y > 0)
         {
             bola_atual->velocity.y *= -1.0f;
@@ -587,8 +640,10 @@ void AtualizarJogo()
 
         VerificarColisaoBolaBloco(bola_atual);
 
+        bola_anterior = bola_atual;
         bola_atual = bola_atual->next;
     }
+    // -----------------------------------------------------------
 
     Bullet *projetil_atual = cabeca_projetil;
     Bullet *projetil_anterior = NULL;
